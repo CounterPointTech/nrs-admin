@@ -1,7 +1,7 @@
 {
   "project": "NRS Admin",
-  "last_updated": "2026-02-16T01:00:00Z",
-  "current_phase": 4,
+  "last_updated": "2026-02-16T22:00:00Z",
+  "current_phase": 6,
   "features": [
     {
       "id": "phase1-api",
@@ -56,6 +56,12 @@
       "name": "Phase 4: Bulk Operations",
       "status": "done",
       "details": "Backend: UpdateStudyRequest + BulkUpdateStatusRequest DTOs with FluentValidation, StudyRepository.UpdateAsync (dynamic SET for editable fields), BulkUpdateStatusAsync (ANY(@Ids) batch), ExportSearchAsync (10k cap). StudiesController: PUT /api/v1/studies/{id}, POST /api/v1/studies/bulk-status, GET /api/v1/studies/export (CSV download). Frontend: Checkbox column on studies TanStack Table with RowSelectionState, bulk action bar (status change dropdown, clear selection), Export CSV button, study detail edit mode (status, priority, comments, custom 1-6 inline editing with save/cancel). Build verified."
+    },
+    {
+      "id": "phase5-hl7",
+      "name": "Phase 5: HL7 Configuration UI",
+      "status": "done",
+      "details": "Backend: Hl7Location, Hl7LocationOption, Hl7MessageDestination, Hl7DestinationOption, Hl7DistributionRule, Hl7FieldMapping, Hl7MessageForwarding domain models. Hl7Repository with full CRUD for all 5 entity groups (locations + options, destinations + distribution rules, field mappings with filter by message_type/location, forwarding rules). Request DTOs + FluentValidation (port ranges, required fields, max lengths). 4 controllers: Hl7LocationsController (CRUD + options sub-resource), Hl7DestinationsController (CRUD + distribution rules sub-resource), Hl7FieldMappingController (CRUD + message-types/locations filter endpoints), Hl7ForwardingController (CRUD). Frontend: HL7 nav section with collapsible menu (Locations, Destinations, Field Mapping, Forwarding). 4 route pages with TanStack Table, sorting, search, CRUD dialogs. Locations page has options sub-dialog. Destinations page has distribution rules sub-dialog. Field Mapping page has server-side filter dropdowns (message type, location). All pages follow modalities CRUD pattern. hl7Api objects in api.ts, full HL7 types in types.ts. Build verified (15 routes)."
     }
   ]
 }

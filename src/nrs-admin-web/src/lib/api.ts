@@ -24,6 +24,23 @@ import {
   DashboardStats,
   SharedSetting,
   SiteSetting,
+  Hl7Location,
+  Hl7LocationOption,
+  CreateHl7LocationRequest,
+  UpdateHl7LocationRequest,
+  SaveHl7LocationOptionRequest,
+  Hl7MessageDestination,
+  Hl7DistributionRule,
+  CreateHl7DestinationRequest,
+  UpdateHl7DestinationRequest,
+  CreateHl7DistributionRuleRequest,
+  UpdateHl7DistributionRuleRequest,
+  Hl7FieldMapping,
+  CreateHl7FieldMappingRequest,
+  UpdateHl7FieldMappingRequest,
+  Hl7MessageForwarding,
+  CreateHl7ForwardingRequest,
+  UpdateHl7ForwardingRequest,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -411,5 +428,174 @@ export const settingsApi = {
       method: 'PUT',
       body: JSON.stringify({ value }),
     });
+  },
+};
+
+// ============== HL7 Locations API ==============
+export const hl7LocationApi = {
+  getAll: async (): Promise<ApiResponse<Hl7Location[]>> => {
+    return fetchWithAuth<Hl7Location[]>('/api/v1/hl7/locations');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Hl7Location>> => {
+    return fetchWithAuth<Hl7Location>(`/api/v1/hl7/locations/${id}`);
+  },
+
+  create: async (request: CreateHl7LocationRequest): Promise<ApiResponse<Hl7Location>> => {
+    return fetchWithAuth<Hl7Location>('/api/v1/hl7/locations', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateHl7LocationRequest): Promise<ApiResponse<Hl7Location>> => {
+    return fetchWithAuth<Hl7Location>(`/api/v1/hl7/locations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/locations/${id}`, { method: 'DELETE' });
+  },
+
+  getOptions: async (locationId: number): Promise<ApiResponse<Hl7LocationOption[]>> => {
+    return fetchWithAuth<Hl7LocationOption[]>(`/api/v1/hl7/locations/${locationId}/options`);
+  },
+
+  upsertOption: async (locationId: number, request: SaveHl7LocationOptionRequest): Promise<ApiResponse<Hl7LocationOption>> => {
+    return fetchWithAuth<Hl7LocationOption>(`/api/v1/hl7/locations/${locationId}/options`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  deleteOption: async (locationId: number, name: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/locations/${locationId}/options/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// ============== HL7 Destinations API ==============
+export const hl7DestinationApi = {
+  getAll: async (): Promise<ApiResponse<Hl7MessageDestination[]>> => {
+    return fetchWithAuth<Hl7MessageDestination[]>('/api/v1/hl7/destinations');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Hl7MessageDestination>> => {
+    return fetchWithAuth<Hl7MessageDestination>(`/api/v1/hl7/destinations/${id}`);
+  },
+
+  create: async (request: CreateHl7DestinationRequest): Promise<ApiResponse<Hl7MessageDestination>> => {
+    return fetchWithAuth<Hl7MessageDestination>('/api/v1/hl7/destinations', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateHl7DestinationRequest): Promise<ApiResponse<Hl7MessageDestination>> => {
+    return fetchWithAuth<Hl7MessageDestination>(`/api/v1/hl7/destinations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/destinations/${id}`, { method: 'DELETE' });
+  },
+
+  getRules: async (destinationId: number): Promise<ApiResponse<Hl7DistributionRule[]>> => {
+    return fetchWithAuth<Hl7DistributionRule[]>(`/api/v1/hl7/destinations/${destinationId}/rules`);
+  },
+
+  getAllRules: async (): Promise<ApiResponse<Hl7DistributionRule[]>> => {
+    return fetchWithAuth<Hl7DistributionRule[]>('/api/v1/hl7/destinations/rules');
+  },
+
+  createRule: async (request: CreateHl7DistributionRuleRequest): Promise<ApiResponse<Hl7DistributionRule>> => {
+    return fetchWithAuth<Hl7DistributionRule>('/api/v1/hl7/destinations/rules', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  updateRule: async (id: number, request: UpdateHl7DistributionRuleRequest): Promise<ApiResponse<Hl7DistributionRule>> => {
+    return fetchWithAuth<Hl7DistributionRule>(`/api/v1/hl7/destinations/rules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  deleteRule: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/destinations/rules/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============== HL7 Field Mapping API ==============
+export const hl7FieldMappingApi = {
+  getAll: async (messageType?: string, locationId?: string): Promise<ApiResponse<Hl7FieldMapping[]>> => {
+    return fetchWithAuth<Hl7FieldMapping[]>(
+      `/api/v1/hl7/field-mapping${buildQueryString({ messageType, locationId })}`
+    );
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Hl7FieldMapping>> => {
+    return fetchWithAuth<Hl7FieldMapping>(`/api/v1/hl7/field-mapping/${id}`);
+  },
+
+  getMessageTypes: async (): Promise<ApiResponse<string[]>> => {
+    return fetchWithAuth<string[]>('/api/v1/hl7/field-mapping/message-types');
+  },
+
+  getLocations: async (): Promise<ApiResponse<(string | null)[]>> => {
+    return fetchWithAuth<(string | null)[]>('/api/v1/hl7/field-mapping/locations');
+  },
+
+  create: async (request: CreateHl7FieldMappingRequest): Promise<ApiResponse<Hl7FieldMapping>> => {
+    return fetchWithAuth<Hl7FieldMapping>('/api/v1/hl7/field-mapping', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateHl7FieldMappingRequest): Promise<ApiResponse<Hl7FieldMapping>> => {
+    return fetchWithAuth<Hl7FieldMapping>(`/api/v1/hl7/field-mapping/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/field-mapping/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============== HL7 Forwarding API ==============
+export const hl7ForwardingApi = {
+  getAll: async (): Promise<ApiResponse<Hl7MessageForwarding[]>> => {
+    return fetchWithAuth<Hl7MessageForwarding[]>('/api/v1/hl7/forwarding');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Hl7MessageForwarding>> => {
+    return fetchWithAuth<Hl7MessageForwarding>(`/api/v1/hl7/forwarding/${id}`);
+  },
+
+  create: async (request: CreateHl7ForwardingRequest): Promise<ApiResponse<Hl7MessageForwarding>> => {
+    return fetchWithAuth<Hl7MessageForwarding>('/api/v1/hl7/forwarding', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateHl7ForwardingRequest): Promise<ApiResponse<Hl7MessageForwarding>> => {
+    return fetchWithAuth<Hl7MessageForwarding>(`/api/v1/hl7/forwarding/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/hl7/forwarding/${id}`, { method: 'DELETE' });
   },
 };

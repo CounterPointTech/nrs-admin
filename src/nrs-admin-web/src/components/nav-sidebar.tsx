@@ -17,6 +17,11 @@ import {
   Moon,
   Sun,
   Shield,
+  Network,
+  MapPin,
+  Send,
+  GitBranch,
+  Forward,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,6 +44,13 @@ const pacsNavItems = [
   { title: 'Studies', href: '/studies', icon: FileSearch },
 ];
 
+const hl7NavItems = [
+  { title: 'Locations', href: '/hl7/locations', icon: MapPin },
+  { title: 'Destinations', href: '/hl7/destinations', icon: Send },
+  { title: 'Field Mapping', href: '/hl7/field-mapping', icon: GitBranch },
+  { title: 'Forwarding', href: '/hl7/forwarding', icon: Forward },
+];
+
 const risModalityItems = [
   { title: 'Modality List', href: '/modalities', icon: Monitor },
   { title: 'Mapping Editor', href: '/modalities/mapping', icon: FileCode2 },
@@ -58,6 +70,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [modalitiesExpanded, setModalitiesExpanded] = useState(true);
+  const [hl7Expanded, setHl7Expanded] = useState(true);
   const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
@@ -204,6 +217,54 @@ export function NavSidebar({ className }: NavSidebarProps) {
                 <NavItem {...item} />
               </div>
             ))}
+          </div>
+
+          <Separator className="my-4 bg-border/50" />
+
+          {/* HL7 */}
+          {!collapsed && (
+            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
+              HL7
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            {collapsed ? (
+              hl7NavItems.map((item, index) => (
+                <div
+                  key={item.href}
+                  className={cn('animate-fade-in', `stagger-${index + 2}`)}
+                  style={{ opacity: 0 }}
+                >
+                  <NavItem {...item} />
+                </div>
+              ))
+            ) : (
+              <div className="animate-fade-in stagger-2" style={{ opacity: 0 }}>
+                <button
+                  onClick={() => setHl7Expanded(!hl7Expanded)}
+                  className={cn(
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <Network className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="flex-1 text-left">HL7 Config</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform duration-200',
+                      hl7Expanded && 'rotate-180'
+                    )}
+                  />
+                </button>
+                {hl7Expanded && (
+                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
+                    {hl7NavItems.map((item) => (
+                      <NavItem key={item.href} {...item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <Separator className="my-4 bg-border/50" />

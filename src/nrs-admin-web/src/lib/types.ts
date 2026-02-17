@@ -283,3 +283,139 @@ export interface SiteSetting {
   createdOnDate: string;
   lastUpdateDate: string;
 }
+
+// ============== HL7 Locations ==============
+export interface Hl7Location {
+  locationId: number;
+  address: string;
+  port?: number;
+  enabled: boolean;
+  cultureCode?: string;
+  productId: number;
+}
+
+export interface Hl7LocationOption {
+  locationId: number;
+  name: string;
+  value?: string;
+  productId: number;
+}
+
+export interface CreateHl7LocationRequest {
+  address: string;
+  port?: number;
+  enabled: boolean;
+  cultureCode?: string;
+}
+
+export interface UpdateHl7LocationRequest extends CreateHl7LocationRequest {}
+
+export interface SaveHl7LocationOptionRequest {
+  name: string;
+  value?: string;
+}
+
+// ============== HL7 Message Destinations ==============
+export interface Hl7MessageDestination {
+  destinationId: number;
+  address: string;
+  port: number;
+  application: string;
+  facility: string;
+  messageType: string;
+  eventType?: string;
+  enabled: boolean;
+  synchronous?: boolean;
+  cultureCode?: string;
+  productId: number;
+}
+
+export interface Hl7DistributionRule {
+  hl7DistributionRuleId: number;
+  destinationId: number;
+  field: string;
+  fieldValue: string;
+  messageType?: string;
+  productId: number;
+}
+
+export interface CreateHl7DestinationRequest {
+  address: string;
+  port: number;
+  application: string;
+  facility: string;
+  messageType: string;
+  eventType?: string;
+  enabled: boolean;
+  synchronous?: boolean;
+  cultureCode?: string;
+}
+
+export interface UpdateHl7DestinationRequest extends CreateHl7DestinationRequest {}
+
+export interface CreateHl7DistributionRuleRequest {
+  destinationId: number;
+  field: string;
+  fieldValue: string;
+  messageType?: string;
+}
+
+export interface UpdateHl7DistributionRuleRequest extends CreateHl7DistributionRuleRequest {}
+
+// ============== HL7 Field Mapping ==============
+export interface Hl7FieldMapping {
+  mappingId: number;
+  messageType: string;
+  eventType?: string;
+  parameterName: string;
+  segmentName: string;
+  field?: number;
+  component?: number;
+  subComponent?: number;
+  locationId?: string;
+  inboundTransform?: string;
+  outboundTransform?: string;
+  inboundTransformParameter?: string;
+  outboundTransformParameter?: string;
+  productId: number;
+}
+
+export interface CreateHl7FieldMappingRequest {
+  messageType: string;
+  eventType?: string;
+  parameterName: string;
+  segmentName: string;
+  field?: number;
+  component?: number;
+  subComponent?: number;
+  locationId?: string;
+  inboundTransform?: string;
+  outboundTransform?: string;
+  inboundTransformParameter?: string;
+  outboundTransformParameter?: string;
+}
+
+export interface UpdateHl7FieldMappingRequest extends CreateHl7FieldMappingRequest {}
+
+// ============== HL7 Message Forwarding ==============
+export interface Hl7MessageForwarding {
+  forwardingId: number;
+  address: string;
+  port: number;
+  message?: string;
+  event?: string;
+  externalKey?: string;
+  sendPostProcessing: boolean;
+  productId: number;
+}
+
+export interface CreateHl7ForwardingRequest {
+  address: string;
+  port: number;
+  message?: string;
+  event?: string;
+  externalKey?: string;
+  sendPostProcessing: boolean;
+}
+
+export interface UpdateHl7ForwardingRequest extends CreateHl7ForwardingRequest {}

@@ -1,39 +1,54 @@
 {
-  "session_id": "2026-02-16-phase4-bulk-ops",
-  "started_at": "2026-02-16T21:00:00Z",
-  "last_updated": "2026-02-16T21:30:00Z",
+  "session_id": "2026-02-16-phase5-hl7-complete",
+  "started_at": "2026-02-16T23:00:00Z",
+  "last_updated": "2026-02-16T23:30:00Z",
   "project": "NRS Admin",
-  "objective": "Phase 4 Bulk Operations complete — study update, bulk status, CSV export, edit mode",
+  "objective": "Phase 5 HL7 Configuration UI complete. Phase 6 PACS Routing & Destinations next.",
   "current_task": {
-    "description": "Phase 4 Bulk Operations implemented. All builds pass.",
+    "description": "Phase 5 HL7 Configuration UI implemented — backend + frontend, all 4 pages.",
     "status": "completed"
   },
   "workflow": {
-    "current_phase": "Phase 4 complete",
+    "current_phase": "Phase 6 — PACS Routing & Destinations",
     "phases": {
       "phase1": "complete",
       "phase2": "complete",
       "phase3": "complete",
-      "phase4": "complete"
+      "phase4": "complete",
+      "phase5": "complete",
+      "phase6": "not_started"
     }
   },
-  "files_created": [],
-  "files_modified": [
-    "src/NrsAdmin.Api/Models/Requests/StudyRequests.cs (added UpdateStudyRequest, BulkUpdateStatusRequest + validators)",
-    "src/NrsAdmin.Api/Models/Domain/Study.cs (added BulkUpdateResult)",
-    "src/NrsAdmin.Api/Repositories/StudyRepository.cs (added UpdateAsync, BulkUpdateStatusAsync, ExportSearchAsync)",
-    "src/NrsAdmin.Api/Controllers/V1/StudiesController.cs (added PUT /{id}, POST /bulk-status, GET /export)",
-    "src/nrs-admin-web/src/lib/types.ts (added UpdateStudyRequest, BulkUpdateStatusRequest, BulkUpdateResult)",
-    "src/nrs-admin-web/src/lib/api.ts (added bulkUpdateStatus, exportCsv, updated update signature)",
-    "src/nrs-admin-web/src/app/(app)/studies/page.tsx (checkbox selection, bulk action bar, export CSV)",
-    "src/nrs-admin-web/src/app/(app)/studies/[id]/page.tsx (edit mode with status/priority/comments/custom fields)"
+  "files_created": [
+    "src/NrsAdmin.Api/Models/Domain/Hl7Location.cs",
+    "src/NrsAdmin.Api/Models/Domain/Hl7MessageDestination.cs",
+    "src/NrsAdmin.Api/Models/Domain/Hl7FieldMapping.cs",
+    "src/NrsAdmin.Api/Models/Domain/Hl7MessageForwarding.cs",
+    "src/NrsAdmin.Api/Models/Requests/Hl7Requests.cs",
+    "src/NrsAdmin.Api/Validators/Hl7Validators.cs",
+    "src/NrsAdmin.Api/Repositories/Hl7Repository.cs",
+    "src/NrsAdmin.Api/Controllers/V1/Hl7LocationsController.cs",
+    "src/NrsAdmin.Api/Controllers/V1/Hl7DestinationsController.cs",
+    "src/NrsAdmin.Api/Controllers/V1/Hl7FieldMappingController.cs",
+    "src/NrsAdmin.Api/Controllers/V1/Hl7ForwardingController.cs",
+    "src/nrs-admin-web/src/app/(app)/hl7/locations/page.tsx",
+    "src/nrs-admin-web/src/app/(app)/hl7/destinations/page.tsx",
+    "src/nrs-admin-web/src/app/(app)/hl7/field-mapping/page.tsx",
+    "src/nrs-admin-web/src/app/(app)/hl7/forwarding/page.tsx"
   ],
-  "commits": ["b3e9af7 — Initial commit: NRS Admin Phases 1-4 (115 files, 20943 lines)"],
+  "files_modified": [
+    "src/NrsAdmin.Api/Program.cs",
+    "src/nrs-admin-web/src/lib/types.ts",
+    "src/nrs-admin-web/src/lib/api.ts",
+    "src/nrs-admin-web/src/components/nav-sidebar.tsx"
+  ],
+  "commits": [
+    "b3e9af7 — Initial commit: NRS Admin Phases 1-4 (115 files, 20943 lines)",
+    "7b008b3 — Add Phase 4 bulk operations: study edit, batch status update, CSV export"
+  ],
   "blockers": [],
   "next_steps": [
-    "Commit Phase 4 bulk ops changes",
-    "Phase 5: HL7 Configuration UI (hl7_field_mapping, hl7_message_forwarding, hl7_locations)",
-    "Phase 6: PACS Routing & Destinations management",
+    "Phase 6: PACS Routing & Destinations management (pacs.destinations, pacs.route_history)",
     "Phase 7: User/Role management, audit logging"
   ]
 }

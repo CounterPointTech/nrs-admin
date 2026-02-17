@@ -133,6 +133,7 @@ try
     builder.Services.AddScoped<StudyRepository>();
     builder.Services.AddScoped<DashboardRepository>();
     builder.Services.AddScoped<SettingsRepository>();
+    builder.Services.AddScoped<Hl7Repository>();
 
     // DI Registration — Services
     builder.Services.AddScoped<AuthService>();
