@@ -134,6 +134,7 @@ try
     builder.Services.AddScoped<DashboardRepository>();
     builder.Services.AddScoped<SettingsRepository>();
     builder.Services.AddScoped<Hl7Repository>();
+    builder.Services.AddScoped<PacsRoutingRepository>();
 
     // DI Registration — Services
     builder.Services.AddScoped<AuthService>();

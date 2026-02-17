@@ -419,3 +419,87 @@ export interface CreateHl7ForwardingRequest {
 }
 
 export interface UpdateHl7ForwardingRequest extends CreateHl7ForwardingRequest {}
+
+// ============== PACS Destinations ==============
+export interface PacsDestination {
+  destinationId: number;
+  name: string;
+  address: string;
+  aeTitle: string;
+  port: number;
+  type: number;
+  password?: string;
+  numTries: number;
+  frequency: number;
+  compression: number;
+  status: number;
+  routeRelated: boolean;
+  transferSyntax: string;
+  routingZone?: number;
+  routingZoneName?: string;
+}
+
+export interface CreatePacsDestinationRequest {
+  name: string;
+  address: string;
+  aeTitle: string;
+  port: number;
+  type: number;
+  password?: string;
+  numTries: number;
+  frequency: number;
+  compression: number;
+  status: number;
+  routeRelated: boolean;
+  transferSyntax: string;
+  routingZone?: number;
+}
+
+export interface UpdatePacsDestinationRequest extends CreatePacsDestinationRequest {}
+
+// Destination type labels (DICOM destination types)
+export const DESTINATION_TYPE_LABELS: Record<number, string> = {
+  0: 'DICOM',
+  1: 'HL7',
+  2: 'Web',
+  3: 'Media',
+};
+
+export function getDestinationTypeLabel(type: number): string {
+  return DESTINATION_TYPE_LABELS[type] ?? `Type ${type}`;
+}
+
+// Destination status labels
+export const DESTINATION_STATUS_LABELS: Record<number, string> = {
+  0: 'Active',
+  1: 'Disabled',
+  2: 'Error',
+};
+
+export function getDestinationStatusLabel(status: number): string {
+  return DESTINATION_STATUS_LABELS[status] ?? `Status ${status}`;
+}
+
+// ============== Route History ==============
+export interface RouteHistoryEntry {
+  id: number;
+  destinationId: number;
+  dataset: number;
+  timeSent: string;
+  overwriteExisting: boolean;
+  destinationName?: string;
+}
+
+// ============== Routing Zones ==============
+export interface RoutingZone {
+  id: number;
+  zoneName: string;
+  isDefault: boolean;
+}
+
+export interface CreateRoutingZoneRequest {
+  zoneName: string;
+  isDefault: boolean;
+}
+
+export interface UpdateRoutingZoneRequest extends CreateRoutingZoneRequest {}

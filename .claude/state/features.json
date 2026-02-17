@@ -1,7 +1,7 @@
 {
   "project": "NRS Admin",
-  "last_updated": "2026-02-16T22:00:00Z",
-  "current_phase": 6,
+  "last_updated": "2026-02-17T01:00:00Z",
+  "current_phase": 7,
   "features": [
     {
       "id": "phase1-api",
@@ -62,6 +62,12 @@
       "name": "Phase 5: HL7 Configuration UI",
       "status": "done",
       "details": "Backend: Hl7Location, Hl7LocationOption, Hl7MessageDestination, Hl7DestinationOption, Hl7DistributionRule, Hl7FieldMapping, Hl7MessageForwarding domain models. Hl7Repository with full CRUD for all 5 entity groups (locations + options, destinations + distribution rules, field mappings with filter by message_type/location, forwarding rules). Request DTOs + FluentValidation (port ranges, required fields, max lengths). 4 controllers: Hl7LocationsController (CRUD + options sub-resource), Hl7DestinationsController (CRUD + distribution rules sub-resource), Hl7FieldMappingController (CRUD + message-types/locations filter endpoints), Hl7ForwardingController (CRUD). Frontend: HL7 nav section with collapsible menu (Locations, Destinations, Field Mapping, Forwarding). 4 route pages with TanStack Table, sorting, search, CRUD dialogs. Locations page has options sub-dialog. Destinations page has distribution rules sub-dialog. Field Mapping page has server-side filter dropdowns (message type, location). All pages follow modalities CRUD pattern. hl7Api objects in api.ts, full HL7 types in types.ts. Build verified (15 routes)."
+    },
+    {
+      "id": "phase6-pacs-routing",
+      "name": "Phase 6: PACS Routing & Destinations",
+      "status": "done",
+      "details": "Backend: PacsDestination, RoutingZone, RouteHistoryEntry domain models. PacsRoutingRepository with full CRUD for destinations (with routing_zone JOIN) and routing zones (with default-zone logic), read-only route_history by destination. CreatePacsDestinationRequest/UpdatePacsDestinationRequest + CreateRoutingZoneRequest/UpdateRoutingZoneRequest DTOs. FluentValidation (AE title max 16, port 1-65535, required fields). PacsDestinationsController (/api/v1/pacs/destinations with CRUD + /{id}/history sub-resource). RoutingZonesController (/api/v1/pacs/routing-zones with CRUD). PacsRoutingRepository registered in Program.cs DI. Frontend: PACS nav section expanded to collapsible menu (Studies, Destinations, Routing Zones). /pacs/destinations page with TanStack Table (9 columns: ID, Name, AE Title, Address:Port, Type, Status, Zone, Transfer Syntax, Actions), CRUD dialogs (14 fields including transfer syntax dropdown, routing zone select, password), route history sub-dialog. /pacs/routing-zones page with TanStack Table and simple CRUD. pacsDestinationApi + routingZoneApi in api.ts, 9 new types in types.ts. Build verified (17 routes)."
     }
   ]
 }

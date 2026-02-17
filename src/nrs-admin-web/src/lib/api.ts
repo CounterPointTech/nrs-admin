@@ -41,6 +41,13 @@ import {
   Hl7MessageForwarding,
   CreateHl7ForwardingRequest,
   UpdateHl7ForwardingRequest,
+  PacsDestination,
+  CreatePacsDestinationRequest,
+  UpdatePacsDestinationRequest,
+  RouteHistoryEntry,
+  RoutingZone,
+  CreateRoutingZoneRequest,
+  UpdateRoutingZoneRequest,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -597,5 +604,69 @@ export const hl7ForwardingApi = {
 
   delete: async (id: number): Promise<ApiResponse<void>> => {
     return fetchWithAuth<void>(`/api/v1/hl7/forwarding/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============== PACS Destinations API ==============
+export const pacsDestinationApi = {
+  getAll: async (): Promise<ApiResponse<PacsDestination[]>> => {
+    return fetchWithAuth<PacsDestination[]>('/api/v1/pacs/destinations');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<PacsDestination>> => {
+    return fetchWithAuth<PacsDestination>(`/api/v1/pacs/destinations/${id}`);
+  },
+
+  create: async (request: CreatePacsDestinationRequest): Promise<ApiResponse<PacsDestination>> => {
+    return fetchWithAuth<PacsDestination>('/api/v1/pacs/destinations', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdatePacsDestinationRequest): Promise<ApiResponse<PacsDestination>> => {
+    return fetchWithAuth<PacsDestination>(`/api/v1/pacs/destinations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/pacs/destinations/${id}`, { method: 'DELETE' });
+  },
+
+  getHistory: async (id: number, limit = 100): Promise<ApiResponse<RouteHistoryEntry[]>> => {
+    return fetchWithAuth<RouteHistoryEntry[]>(
+      `/api/v1/pacs/destinations/${id}/history${buildQueryString({ limit })}`
+    );
+  },
+};
+
+// ============== Routing Zones API ==============
+export const routingZoneApi = {
+  getAll: async (): Promise<ApiResponse<RoutingZone[]>> => {
+    return fetchWithAuth<RoutingZone[]>('/api/v1/pacs/routing-zones');
+  },
+
+  getById: async (id: number): Promise<ApiResponse<RoutingZone>> => {
+    return fetchWithAuth<RoutingZone>(`/api/v1/pacs/routing-zones/${id}`);
+  },
+
+  create: async (request: CreateRoutingZoneRequest): Promise<ApiResponse<RoutingZone>> => {
+    return fetchWithAuth<RoutingZone>('/api/v1/pacs/routing-zones', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateRoutingZoneRequest): Promise<ApiResponse<RoutingZone>> => {
+    return fetchWithAuth<RoutingZone>(`/api/v1/pacs/routing-zones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/pacs/routing-zones/${id}`, { method: 'DELETE' });
   },
 };

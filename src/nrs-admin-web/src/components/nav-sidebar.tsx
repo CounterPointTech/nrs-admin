@@ -22,6 +22,9 @@ import {
   Send,
   GitBranch,
   Forward,
+  Radio,
+  Waypoints,
+  HardDrive,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -42,6 +45,8 @@ const dashboardNavItems = [
 
 const pacsNavItems = [
   { title: 'Studies', href: '/studies', icon: FileSearch },
+  { title: 'Destinations', href: '/pacs/destinations', icon: Radio },
+  { title: 'Routing Zones', href: '/pacs/routing-zones', icon: Waypoints },
 ];
 
 const hl7NavItems = [
@@ -69,6 +74,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [pacsExpanded, setPacsExpanded] = useState(true);
   const [modalitiesExpanded, setModalitiesExpanded] = useState(true);
   const [hl7Expanded, setHl7Expanded] = useState(true);
   const { theme, setTheme } = useTheme();
@@ -208,15 +214,43 @@ export function NavSidebar({ className }: NavSidebarProps) {
             </div>
           )}
           <div className="flex flex-col gap-1">
-            {pacsNavItems.map((item, index) => (
-              <div
-                key={item.href}
-                className={cn('animate-fade-in', `stagger-${index + 2}`)}
-                style={{ opacity: 0 }}
-              >
-                <NavItem {...item} />
+            {collapsed ? (
+              pacsNavItems.map((item, index) => (
+                <div
+                  key={item.href}
+                  className={cn('animate-fade-in', `stagger-${index + 2}`)}
+                  style={{ opacity: 0 }}
+                >
+                  <NavItem {...item} />
+                </div>
+              ))
+            ) : (
+              <div className="animate-fade-in stagger-2" style={{ opacity: 0 }}>
+                <button
+                  onClick={() => setPacsExpanded(!pacsExpanded)}
+                  className={cn(
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <HardDrive className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="flex-1 text-left">PACS</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform duration-200',
+                      pacsExpanded && 'rotate-180'
+                    )}
+                  />
+                </button>
+                {pacsExpanded && (
+                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
+                    {pacsNavItems.map((item) => (
+                      <NavItem key={item.href} {...item} />
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            )}
           </div>
 
           <Separator className="my-4 bg-border/50" />
