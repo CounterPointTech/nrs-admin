@@ -1,0 +1,56 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+logs/
+*.log
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / Next.js (frontend)
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+.vercel
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+*.pem
+appsettings.Development.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Reference projects (large, not our code)
+Reference Projects/
+
+# Documents (DB schema dump, local docs)
+Documents/

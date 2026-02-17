@@ -1,0 +1,60 @@
+{
+  "project": "NRS Admin",
+  "last_updated": "2026-02-16T01:00:00Z",
+  "current_phase": 4,
+  "features": [
+    {
+      "id": "phase1-api",
+      "name": "Phase 1: .NET 8 API Setup + Auth + Facility",
+      "status": "done",
+      "details": "Solution, project, NuGet packages, Program.cs, JWT auth, Serilog, Swagger, CORS, ExceptionHandlingMiddleware, ApiResponse, BaseRepository, UserRepository, FacilityRepository, AuthService, JwtTokenService, NovaradPasswordHasher, AuthController, FacilitiesController, FluentValidation"
+    },
+    {
+      "id": "phase1-frontend",
+      "name": "Phase 1: Next.js Frontend Shell",
+      "status": "done",
+      "details": "Next.js 16 created, shadcn/ui installed (20 components including table), globals.css with OKLCh theme, types.ts, api.ts client, auth-context.tsx, nav-sidebar.tsx, login page, (app) layout with auth guard, dashboard, all route pages. Build verified."
+    },
+    {
+      "id": "phase2-modality-api",
+      "name": "Phase 2: Modality CRUD + Mapping File + AE Monitor APIs",
+      "status": "done",
+      "details": "ModalityRepository (CRUD with safe delete), ModalityTypeRepository (CRUD with existence check), AeMonitorRepository (shared_local.events query), MappingFileService (read/write/backup/restore/validate), ModalitiesController, ModalityTypesController, MappingController, AeMonitorController, FluentValidation validators, all registered in DI. Build verified."
+    },
+    {
+      "id": "phase2-frontend",
+      "name": "Phase 2: Modality List + Mapping Editor + AE Monitor UI",
+      "status": "done",
+      "details": "Modalities page (TanStack Table with sorting/filtering, create/edit/delete dialogs), Mapping Editor (Monaco raw editor + visual table view, backup restore), AE Monitor (auto-refresh 30s, time range selector, stats cards, filter). API client URLs aligned to backend. Build verified."
+    },
+    {
+      "id": "phase3-study-api",
+      "name": "Phase 3: Study Data Access + API",
+      "status": "done",
+      "details": "StudySearchResult + StudyDetail + Series + Dataset domain models, StudySearchRequest DTO, StudyRepository (paginated search with dynamic WHERE, patient/facility/physician JOINs, series/dataset queries), StudiesController (search, getById, getSeries), SeriesController (getDatasets), registered in DI. Build verified."
+    },
+    {
+      "id": "phase3-frontend",
+      "name": "Phase 3: Study Search + Detail UI",
+      "status": "done",
+      "details": "Study search page with 8-field advanced filter form, server-side paginated TanStack Table, study detail page with patient/study/clinical info cards, series table with expandable datasets. Build verified."
+    },
+    {
+      "id": "phase4-dashboard",
+      "name": "Phase 4: Dashboard with Stats + Charts",
+      "status": "done",
+      "details": "DashboardStats model (total studies, today's studies, active sessions, total patients, by-status/modality/date breakdowns, recent studies). DashboardRepository with concurrent aggregate queries on pacs.studies, pacs.patients, shared.active_sessions. DashboardController GET /api/v1/dashboard/stats. Frontend: stat cards (4 KPIs), Recharts AreaChart (30-day volume trend), PieChart (studies by status with legend), horizontal BarChart (studies by modality, top 15), recent studies table with click-to-detail, quick access links. Refresh button, loading skeletons, error state. Build verified."
+    },
+    {
+      "id": "phase4-settings",
+      "name": "Phase 4: Settings Management",
+      "status": "done",
+      "details": "Setting + SiteSetting domain models. SettingsRepository with CRUD for shared.settings (with using_default flag) and site.settings (search, get by name, update value). SettingsController with separate endpoints for shared vs site settings (GET list, GET by name, PUT update). Frontend: tabbed UI (Shared Settings / Site Settings), searchable settings table with inline edit (click pencil, edit value, Enter/Escape, check/X buttons), toast notifications on save. Build verified."
+    },
+    {
+      "id": "phase4-bulk-ops",
+      "name": "Phase 4: Bulk Operations (stretch)",
+      "status": "not_started"
+    }
+  ]
+}

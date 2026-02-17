@@ -1,0 +1,6 @@
+@NrsAdmin.Api_HostAddress = http://localhost:5268
+
+GET {{NrsAdmin.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
