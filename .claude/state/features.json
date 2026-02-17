@@ -1,7 +1,7 @@
 {
   "project": "NRS Admin",
-  "last_updated": "2026-02-17T01:00:00Z",
-  "current_phase": 7,
+  "last_updated": "2026-02-17T19:00:00Z",
+  "current_phase": "connection_config",
   "features": [
     {
       "id": "phase1-api",
@@ -43,31 +43,44 @@
       "id": "phase4-dashboard",
       "name": "Phase 4: Dashboard with Stats + Charts",
       "status": "done",
-      "details": "DashboardStats model (total studies, today's studies, active sessions, total patients, by-status/modality/date breakdowns, recent studies). DashboardRepository with concurrent aggregate queries on pacs.studies, pacs.patients, shared.active_sessions. DashboardController GET /api/v1/dashboard/stats. Frontend: stat cards (4 KPIs), Recharts AreaChart (30-day volume trend), PieChart (studies by status with legend), horizontal BarChart (studies by modality, top 15), recent studies table with click-to-detail, quick access links. Refresh button, loading skeletons, error state. Build verified."
+      "details": "DashboardStats model, DashboardRepository with concurrent aggregate queries, DashboardController. Frontend: stat cards, Recharts charts, recent studies table. Build verified."
     },
     {
       "id": "phase4-settings",
       "name": "Phase 4: Settings Management",
       "status": "done",
-      "details": "Setting + SiteSetting domain models. SettingsRepository with CRUD for shared.settings (with using_default flag) and site.settings (search, get by name, update value). SettingsController with separate endpoints for shared vs site settings (GET list, GET by name, PUT update). Frontend: tabbed UI (Shared Settings / Site Settings), searchable settings table with inline edit (click pencil, edit value, Enter/Escape, check/X buttons), toast notifications on save. Build verified."
+      "details": "SettingsRepository with CRUD for shared.settings and site.settings. SettingsController. Frontend: tabbed UI with searchable inline-edit tables. Build verified."
     },
     {
       "id": "phase4-bulk-ops",
       "name": "Phase 4: Bulk Operations",
       "status": "done",
-      "details": "Backend: UpdateStudyRequest + BulkUpdateStatusRequest DTOs with FluentValidation, StudyRepository.UpdateAsync (dynamic SET for editable fields), BulkUpdateStatusAsync (ANY(@Ids) batch), ExportSearchAsync (10k cap). StudiesController: PUT /api/v1/studies/{id}, POST /api/v1/studies/bulk-status, GET /api/v1/studies/export (CSV download). Frontend: Checkbox column on studies TanStack Table with RowSelectionState, bulk action bar (status change dropdown, clear selection), Export CSV button, study detail edit mode (status, priority, comments, custom 1-6 inline editing with save/cancel). Build verified."
+      "details": "Study update/bulk status/CSV export APIs. Frontend: checkbox selection, bulk action bar, export CSV, study detail edit mode. Build verified."
     },
     {
       "id": "phase5-hl7",
       "name": "Phase 5: HL7 Configuration UI",
       "status": "done",
-      "details": "Backend: Hl7Location, Hl7LocationOption, Hl7MessageDestination, Hl7DestinationOption, Hl7DistributionRule, Hl7FieldMapping, Hl7MessageForwarding domain models. Hl7Repository with full CRUD for all 5 entity groups (locations + options, destinations + distribution rules, field mappings with filter by message_type/location, forwarding rules). Request DTOs + FluentValidation (port ranges, required fields, max lengths). 4 controllers: Hl7LocationsController (CRUD + options sub-resource), Hl7DestinationsController (CRUD + distribution rules sub-resource), Hl7FieldMappingController (CRUD + message-types/locations filter endpoints), Hl7ForwardingController (CRUD). Frontend: HL7 nav section with collapsible menu (Locations, Destinations, Field Mapping, Forwarding). 4 route pages with TanStack Table, sorting, search, CRUD dialogs. Locations page has options sub-dialog. Destinations page has distribution rules sub-dialog. Field Mapping page has server-side filter dropdowns (message type, location). All pages follow modalities CRUD pattern. hl7Api objects in api.ts, full HL7 types in types.ts. Build verified (15 routes)."
+      "details": "Full CRUD for HL7 Locations, Destinations, Field Mapping, Forwarding. 4 controllers, 4 frontend pages. Build verified."
     },
     {
       "id": "phase6-pacs-routing",
       "name": "Phase 6: PACS Routing & Destinations",
       "status": "done",
-      "details": "Backend: PacsDestination, RoutingZone, RouteHistoryEntry domain models. PacsRoutingRepository with full CRUD for destinations (with routing_zone JOIN) and routing zones (with default-zone logic), read-only route_history by destination. CreatePacsDestinationRequest/UpdatePacsDestinationRequest + CreateRoutingZoneRequest/UpdateRoutingZoneRequest DTOs. FluentValidation (AE title max 16, port 1-65535, required fields). PacsDestinationsController (/api/v1/pacs/destinations with CRUD + /{id}/history sub-resource). RoutingZonesController (/api/v1/pacs/routing-zones with CRUD). PacsRoutingRepository registered in Program.cs DI. Frontend: PACS nav section expanded to collapsible menu (Studies, Destinations, Routing Zones). /pacs/destinations page with TanStack Table (9 columns: ID, Name, AE Title, Address:Port, Type, Status, Zone, Transfer Syntax, Actions), CRUD dialogs (14 fields including transfer syntax dropdown, routing zone select, password), route history sub-dialog. /pacs/routing-zones page with TanStack Table and simple CRUD. pacsDestinationApi + routingZoneApi in api.ts, 9 new types in types.ts. Build verified (17 routes)."
+      "details": "PacsDestination, RoutingZone, RouteHistoryEntry. Full CRUD + route history. 2 frontend pages. Build verified."
+    },
+    {
+      "id": "connection-config",
+      "name": "Remote Connection & Mapping File Configuration",
+      "status": "implemented_needs_testing",
+      "details": "ConnectionSettings model, ConnectionJsonConfigurationSource (overrides appsettings.json), ConnectionSettingsService singleton (load/save/test connection/test path/browse filesystem). ConnectionController (6 endpoints: status, get, save, test, test-path, browse — anonymous when unconfigured, JWT when configured). All repositories switched to IOptionsMonitor for hot-reload. MappingFileService switched to IOptionsMonitor. Frontend: /setup page (DB connection + mapping file forms with browse buttons, test connection, save & redirect), auth-context connectionReady check, login page connection banner, Settings Connection tab, nav-sidebar green/red dot. FileBrowserDialog component for server-side file browsing. Port changed to 5001 (Docker conflict on 5000). Both builds verified 0 errors."
+    },
+    {
+      "id": "ad-ldap-auth",
+      "name": "AD/LDAP Authentication Support",
+      "status": "not_started",
+      "details": "User got 'AD/LDAP authentication is not supported in NRS Admin' error when logging in. Need to investigate shared.users.password_format values for AD/LDAP users and implement LDAP bind authentication.",
+      "blockers": ["Need to investigate password_format values beyond 0/1/2", "Need to determine LDAP server config location in Novarad DB"]
     }
   ]
 }

@@ -19,7 +19,7 @@ public class DashboardRepository : BaseRepository
         [7] = "Stat"
     };
 
-    public DashboardRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public DashboardRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<DashboardStats> GetStatsAsync()
     {

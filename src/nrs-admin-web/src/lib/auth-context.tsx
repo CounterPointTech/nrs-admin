@@ -1,16 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserInfo } from './types';
-import { authApi, getTokens, clearTokens } from './api';
+import { UserInfo, ConnectionStatusResponse } from './types';
+import { authApi, connectionApi, getTokens, clearTokens } from './api';
 
 interface AuthContextType {
   user: UserInfo | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  connectionReady: boolean;
+  connectionStatus: ConnectionStatusResponse | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  recheckConnection: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,6 +21,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionReady, setConnectionReady] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusResponse | null>(null);
+
+  const recheckConnection = useCallback(async () => {
+    try {
+      const result = await connectionApi.getStatus();
+      if (result.success && result.data) {
+        setConnectionStatus(result.data);
+        setConnectionReady(result.data.isConfigured && result.data.isConnected);
+      } else {
+        setConnectionReady(false);
+        setConnectionStatus(null);
+      }
+    } catch {
+      setConnectionReady(false);
+      setConnectionStatus(null);
+    }
+  }, []);
 
   const refreshUser = useCallback(async () => {
     const tokens = getTokens();
@@ -44,8 +65,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    const init = async () => {
+      await recheckConnection();
+      await refreshUser();
+    };
+    init();
+  }, [recheckConnection, refreshUser]);
 
   const login = async (username: string, password: string) => {
     try {
@@ -74,9 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        connectionReady,
+        connectionStatus,
         login,
         logout,
         refreshUser,
+        recheckConnection,
       }}
     >
       {children}

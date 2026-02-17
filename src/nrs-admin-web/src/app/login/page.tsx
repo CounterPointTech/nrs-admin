@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Shield, Loader2, AlertCircle, Eye, EyeOff, WifiOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading, connectionReady, connectionStatus } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -101,6 +101,19 @@ export default function LoginPage() {
 
         <CardContent className="relative pt-4">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {connectionStatus && !connectionReady && (
+              <Alert className="border-yellow-500/50 bg-yellow-500/10 animate-fade-in">
+                <WifiOff className="h-4 w-4 text-yellow-500" />
+                <AlertDescription className="text-sm">
+                  {!connectionStatus.isConfigured ? (
+                    <>Database not configured. <a href="/setup" className="underline font-medium text-primary hover:text-primary/80">Run setup</a></>
+                  ) : (
+                    <>Database connection failed. <a href="/setup" className="underline font-medium text-primary hover:text-primary/80">Check settings</a></>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {error && (
               <Alert variant="destructive" className="animate-fade-in border-destructive/50 bg-destructive/10">
                 <AlertCircle className="h-4 w-4" />

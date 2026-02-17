@@ -7,7 +7,7 @@ namespace NrsAdmin.Api.Repositories;
 
 public class ModalityTypeRepository : BaseRepository
 {
-    public ModalityTypeRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public ModalityTypeRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<List<ModalityType>> GetAllAsync()
     {

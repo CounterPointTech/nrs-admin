@@ -15,7 +15,7 @@ public class StudyRepository : BaseRepository
         "studyDate", "patientName", "patientId", "accession", "modality", "status", "facilityName"
     };
 
-    public StudyRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public StudyRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<PagedResponse<StudySearchResult>> SearchAsync(StudySearchRequest request)
     {

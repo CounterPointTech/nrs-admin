@@ -7,7 +7,7 @@ namespace NrsAdmin.Api.Repositories;
 
 public class SettingsRepository : BaseRepository
 {
-    public SettingsRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public SettingsRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     // ============== shared.settings ==============
 

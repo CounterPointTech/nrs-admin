@@ -8,18 +8,18 @@ namespace NrsAdmin.Api.Services;
 
 public partial class MappingFileService
 {
-    private readonly MappingFileSettings _settings;
+    private readonly IOptionsMonitor<MappingFileSettings> _settings;
     private readonly ILogger<MappingFileService> _logger;
 
-    public MappingFileService(IOptions<MappingFileSettings> settings, ILogger<MappingFileService> logger)
+    public MappingFileService(IOptionsMonitor<MappingFileSettings> settings, ILogger<MappingFileService> logger)
     {
-        _settings = settings.Value;
+        _settings = settings;
         _logger = logger;
     }
 
     public async Task<List<MappingEntry>> ReadEntriesAsync()
     {
-        var path = _settings.Path;
+        var path = _settings.CurrentValue.Path;
         if (!File.Exists(path))
         {
             _logger.LogWarning("Mapping file not found at {Path}", path);
@@ -57,7 +57,7 @@ public partial class MappingFileService
 
     public async Task<string> ReadRawAsync()
     {
-        var path = _settings.Path;
+        var path = _settings.CurrentValue.Path;
         if (!File.Exists(path))
         {
             _logger.LogWarning("Mapping file not found at {Path}", path);
@@ -99,25 +99,25 @@ public partial class MappingFileService
             sb.AppendLine(string.Join(" ", parts));
         }
 
-        await File.WriteAllTextAsync(_settings.Path, sb.ToString());
+        await File.WriteAllTextAsync(_settings.CurrentValue.Path, sb.ToString());
         _logger.LogInformation("Mapping file updated with {Count} entries at {Path}",
-            entries.Count(e => !e.IsComment), _settings.Path);
+            entries.Count(e => !e.IsComment), _settings.CurrentValue.Path);
     }
 
     public async Task WriteRawAsync(string content)
     {
         await CreateBackupAsync();
-        await File.WriteAllTextAsync(_settings.Path, content);
-        _logger.LogInformation("Mapping file updated (raw write) at {Path}", _settings.Path);
+        await File.WriteAllTextAsync(_settings.CurrentValue.Path, content);
+        _logger.LogInformation("Mapping file updated (raw write) at {Path}", _settings.CurrentValue.Path);
     }
 
     public async Task<string> CreateBackupAsync()
     {
-        var path = _settings.Path;
+        var path = _settings.CurrentValue.Path;
         if (!File.Exists(path))
             throw new FileNotFoundException("Mapping file not found.", path);
 
-        var backupDir = _settings.BackupDirectory;
+        var backupDir = _settings.CurrentValue.BackupDirectory;
         Directory.CreateDirectory(backupDir);
 
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
@@ -132,7 +132,7 @@ public partial class MappingFileService
 
     public List<MappingBackup> ListBackups()
     {
-        var backupDir = _settings.BackupDirectory;
+        var backupDir = _settings.CurrentValue.BackupDirectory;
         if (!Directory.Exists(backupDir))
             return [];
 
@@ -154,14 +154,14 @@ public partial class MappingFileService
         if (fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
             throw new ArgumentException("Invalid backup filename.");
 
-        var backupPath = Path.Combine(_settings.BackupDirectory, fileName);
+        var backupPath = Path.Combine(_settings.CurrentValue.BackupDirectory, fileName);
         if (!File.Exists(backupPath))
             throw new FileNotFoundException("Backup file not found.", fileName);
 
         // Backup the current file before restoring
         await CreateBackupAsync();
 
-        File.Copy(backupPath, _settings.Path, overwrite: true);
+        File.Copy(backupPath, _settings.CurrentValue.Path, overwrite: true);
         _logger.LogInformation("Mapping file restored from backup {FileName}", fileName);
     }
 

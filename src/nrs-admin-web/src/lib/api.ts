@@ -1,5 +1,12 @@
 import {
   ApiResponse,
+  ConnectionStatusResponse,
+  ConnectionSettingsResponse,
+  SaveConnectionRequest,
+  TestConnectionRequest,
+  TestConnectionResponse,
+  TestPathResponse,
+  BrowseResponse,
   LoginRequest,
   LoginResponse,
   RefreshRequest,
@@ -50,7 +57,7 @@ import {
   UpdateRoutingZoneRequest,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 // Token storage
 let accessToken: string | null = null;
@@ -188,6 +195,55 @@ function buildQueryString(params: Record<string, unknown>): string {
   const qs = searchParams.toString();
   return qs ? `?${qs}` : '';
 }
+
+// ============== Connection API ==============
+export const connectionApi = {
+  getStatus: async (): Promise<ApiResponse<ConnectionStatusResponse>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/connection/status`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return await response.json();
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to check connection status',
+      };
+    }
+  },
+
+  getSettings: async (): Promise<ApiResponse<ConnectionSettingsResponse>> => {
+    return fetchWithAuth<ConnectionSettingsResponse>('/api/v1/connection');
+  },
+
+  save: async (request: SaveConnectionRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>('/api/v1/connection', {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  testConnection: async (request: TestConnectionRequest): Promise<ApiResponse<TestConnectionResponse>> => {
+    return fetchWithAuth<TestConnectionResponse>('/api/v1/connection/test', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  testPath: async (path: string): Promise<ApiResponse<TestPathResponse>> => {
+    return fetchWithAuth<TestPathResponse>('/api/v1/connection/test-path', {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    });
+  },
+
+  browse: async (path?: string, type: 'file' | 'directory' = 'file'): Promise<ApiResponse<BrowseResponse>> => {
+    const params = new URLSearchParams();
+    if (path) params.set('path', path);
+    params.set('type', type);
+    return fetchWithAuth<BrowseResponse>(`/api/v1/connection/browse?${params.toString()}`);
+  },
+};
 
 // ============== Auth API ==============
 export const authApi = {

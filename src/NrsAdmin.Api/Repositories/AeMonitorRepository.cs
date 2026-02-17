@@ -9,7 +9,7 @@ public class AeMonitorRepository : BaseRepository
 {
     private readonly ILogger<AeMonitorRepository> _logger;
 
-    public AeMonitorRepository(IOptions<DatabaseSettings> settings, ILogger<AeMonitorRepository> logger)
+    public AeMonitorRepository(IOptionsMonitor<DatabaseSettings> settings, ILogger<AeMonitorRepository> logger)
         : base(settings)
     {
         _logger = logger;

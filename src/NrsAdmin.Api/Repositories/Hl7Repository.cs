@@ -9,7 +9,7 @@ public class Hl7Repository : BaseRepository
 {
     private const int DefaultProductId = 1;
 
-    public Hl7Repository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public Hl7Repository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     // ===================== HL7 Locations =====================
 

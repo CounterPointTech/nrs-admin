@@ -7,7 +7,7 @@ namespace NrsAdmin.Api.Repositories;
 
 public class FacilityRepository : BaseRepository
 {
-    public FacilityRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public FacilityRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<List<Facility>> GetAllAsync()
     {

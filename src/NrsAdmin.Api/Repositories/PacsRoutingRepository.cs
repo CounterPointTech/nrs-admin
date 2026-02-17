@@ -7,7 +7,7 @@ namespace NrsAdmin.Api.Repositories;
 
 public class PacsRoutingRepository : BaseRepository
 {
-    public PacsRoutingRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public PacsRoutingRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     // ==================== Destinations ====================
 

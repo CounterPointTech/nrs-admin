@@ -60,6 +60,20 @@ This file tracks important architectural and design decisions.
 **Rationale:** Study data in PACS is primarily managed by the DICOM pipeline, not manual edits. Edit capability can be added in Phase 4 if needed.
 **Files Affected:** `StudiesController.cs`, `studies/[id]/page.tsx`
 
+### Decision: Remote connection via connection.json overlay
+
+**Context:** NRS Admin hardcoded DB connection in appsettings.json. Users need to configure remote DB connections without editing config files.
+**Decision:** Created `connection.json` as a custom IConfigurationSource that overrides appsettings.json. ConnectionSettingsService manages atomic read/write. All repositories switched from `IOptions<DatabaseSettings>` to `IOptionsMonitor<DatabaseSettings>` for hot-reload on save.
+**Rationale:** Avoids modifying appsettings.json at runtime. IOptionsMonitor enables config hot-reload without app restart. Anonymous access to connection endpoints when DB is unconfigured (chicken-and-egg: can't auth against a DB that isn't configured).
+**Files Affected:** `ConnectionSettings.cs`, `ConnectionJsonConfigurationSource.cs`, `ConnectionSettingsService.cs`, `ConnectionController.cs`, `BaseRepository.cs`, all 10 repo subclasses, `MappingFileService.cs`, `Program.cs`
+
+### Decision: API port changed from 5000 to 5001
+
+**Context:** Docker Desktop was occupying port 5000 on the dev machine, causing the API to fail to bind.
+**Decision:** Changed API to port 5001 in launchSettings.json, appsettings.json, and frontend .env.local/api.ts.
+**Rationale:** Port 5000 is commonly used by Docker/AirPlay on modern systems. 5001 avoids the conflict.
+**Files Affected:** `launchSettings.json`, `appsettings.json`, `.env.local`, `api.ts`
+
 ### Decision: Physician name resolution via two-hop JOIN
 
 **Context:** `pacs.studies.physician_id` references `ris.physicians.physician_id`, which has `person_id` referencing `ris.people.person_id`. Name is on `ris.people`.

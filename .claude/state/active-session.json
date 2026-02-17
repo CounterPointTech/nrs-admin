@@ -1,15 +1,15 @@
 {
-  "session_id": "2026-02-17-phase6-pacs-routing-complete",
-  "started_at": "2026-02-17T00:30:00Z",
-  "last_updated": "2026-02-17T01:00:00Z",
+  "session_id": "2026-02-17-remote-connection-setup",
+  "started_at": "2026-02-17T17:00:00Z",
+  "last_updated": "2026-02-17T19:00:00Z",
   "project": "NRS Admin",
-  "objective": "Phase 6 PACS Routing & Destinations complete. Phase 7 User/Role Management next.",
+  "objective": "Remote connection & mapping file configuration feature. AD/LDAP auth support next.",
   "current_task": {
-    "description": "Phase 6 PACS Routing & Destinations complete. Ready for Phase 7.",
-    "status": "completed"
+    "description": "Remote connection config implemented. Needs testing. AD/LDAP auth support requested.",
+    "status": "in_progress"
   },
   "workflow": {
-    "current_phase": "Phase 7 — User/Role Management & Audit Logging",
+    "current_phase": "Connection Config + AD/LDAP Auth",
     "phases": {
       "phase1": "complete",
       "phase2": "complete",
@@ -17,35 +17,53 @@
       "phase4": "complete",
       "phase5": "complete",
       "phase6": "complete",
-      "phase7": "not_started"
+      "connection_config": "implemented_needs_testing",
+      "ad_ldap_auth": "not_started"
     }
   },
   "files_created": [
-    "src/NrsAdmin.Api/Models/Domain/PacsDestination.cs",
-    "src/NrsAdmin.Api/Models/Domain/RoutingZone.cs",
-    "src/NrsAdmin.Api/Models/Domain/RouteHistoryEntry.cs",
-    "src/NrsAdmin.Api/Models/Requests/PacsRoutingRequests.cs",
-    "src/NrsAdmin.Api/Validators/PacsRoutingValidators.cs",
-    "src/NrsAdmin.Api/Repositories/PacsRoutingRepository.cs",
-    "src/NrsAdmin.Api/Controllers/V1/PacsDestinationsController.cs",
-    "src/NrsAdmin.Api/Controllers/V1/RoutingZonesController.cs",
-    "src/nrs-admin-web/src/app/(app)/pacs/destinations/page.tsx",
-    "src/nrs-admin-web/src/app/(app)/pacs/routing-zones/page.tsx"
+    "src/NrsAdmin.Api/Configuration/ConnectionSettings.cs",
+    "src/NrsAdmin.Api/Configuration/ConnectionJsonConfigurationSource.cs",
+    "src/NrsAdmin.Api/Services/ConnectionSettingsService.cs",
+    "src/NrsAdmin.Api/Controllers/V1/ConnectionController.cs",
+    "src/NrsAdmin.Api/Models/Requests/ConnectionRequests.cs",
+    "src/NrsAdmin.Api/Models/Responses/ConnectionResponses.cs",
+    "src/NrsAdmin.Api/Validators/ConnectionValidators.cs",
+    "src/nrs-admin-web/src/app/setup/page.tsx",
+    "src/nrs-admin-web/src/components/file-browser-dialog.tsx"
   ],
   "files_modified": [
-    "src/NrsAdmin.Api/Program.cs",
-    "src/nrs-admin-web/src/lib/types.ts",
-    "src/nrs-admin-web/src/lib/api.ts",
-    "src/nrs-admin-web/src/components/nav-sidebar.tsx"
+    "src/NrsAdmin.Api/Repositories/BaseRepository.cs — IOptions to IOptionsMonitor",
+    "src/NrsAdmin.Api/Repositories/UserRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/FacilityRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/ModalityRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/ModalityTypeRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/AeMonitorRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/StudyRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/DashboardRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/SettingsRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/Hl7Repository.cs — constructor param",
+    "src/NrsAdmin.Api/Repositories/PacsRoutingRepository.cs — constructor param",
+    "src/NrsAdmin.Api/Services/MappingFileService.cs — IOptionsMonitor + CurrentValue",
+    "src/NrsAdmin.Api/Program.cs — config source + ConnectionSettingsService DI",
+    "src/NrsAdmin.Api/Properties/launchSettings.json — port 5001",
+    "src/NrsAdmin.Api/appsettings.json — Kestrel port 5001",
+    "src/nrs-admin-web/src/lib/types.ts — connection + browse types",
+    "src/nrs-admin-web/src/lib/api.ts — connectionApi (6 methods), port 5001",
+    "src/nrs-admin-web/src/lib/auth-context.tsx — connectionReady + recheckConnection",
+    "src/nrs-admin-web/src/app/(app)/layout.tsx — redirect to /setup if unconfigured",
+    "src/nrs-admin-web/src/app/login/page.tsx — connection warning banner",
+    "src/nrs-admin-web/src/app/(app)/settings/page.tsx — Connection tab + browse buttons",
+    "src/nrs-admin-web/src/components/nav-sidebar.tsx — green/red connection dot",
+    "src/nrs-admin-web/.env.local — port 5001"
   ],
-  "commits": [
-    "b3e9af7 — Initial commit: NRS Admin Phases 1-4 (115 files, 20943 lines)",
-    "7b008b3 — Add Phase 4 bulk operations: study edit, batch status update, CSV export",
-    "aa74232 — Add Phase 5 HL7 Configuration UI (22 files, +3960 lines)"
-  ],
+  "commits": [],
   "blockers": [],
   "next_steps": [
-    "Phase 7: User/Role management, audit logging",
-    "Phase 8: Additional PACS features (abstract syntaxes, DICOM labels)"
+    "Test full connection config flow (setup page → save → login → settings tab)",
+    "Test file browser dialog for mapping file/backup dir paths",
+    "Fix AD/LDAP auth error — user got 'AD/LDAP authentication is not supported' when logging in",
+    "Implement AD/LDAP authentication support (likely LDAP bind against Active Directory)",
+    "Consider: shared.users.password_format may have AD/LDAP indicator values beyond 0/1/2"
   ]
 }

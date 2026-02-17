@@ -72,7 +72,7 @@ interface NavSidebarProps {
 
 export function NavSidebar({ className }: NavSidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, connectionReady } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [pacsExpanded, setPacsExpanded] = useState(true);
   const [modalitiesExpanded, setModalitiesExpanded] = useState(true);
@@ -157,8 +157,15 @@ export function NavSidebar({ className }: NavSidebarProps) {
                 <span className="absolute inset-0 rounded-lg bg-primary/20 animate-pulse-glow" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg tracking-tight gradient-text">
+                <span className="font-bold text-lg tracking-tight gradient-text flex items-center gap-2">
                   NRS Admin
+                  <span
+                    className={cn(
+                      'inline-block h-2 w-2 rounded-full flex-shrink-0',
+                      connectionReady ? 'bg-green-500' : 'bg-red-500'
+                    )}
+                    title={connectionReady ? 'Connected' : 'Disconnected'}
+                  />
                 </span>
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
                   Novarad Tools

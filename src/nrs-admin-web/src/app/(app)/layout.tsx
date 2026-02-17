@@ -11,14 +11,22 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, connectionReady, connectionStatus } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+
+    // If connection is not configured, redirect to setup
+    if (connectionStatus && !connectionStatus.isConfigured) {
+      router.replace('/setup');
+      return;
+    }
+
+    if (!isAuthenticated) {
       router.replace('/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, connectionReady, connectionStatus, router]);
 
   if (isLoading) {
     return (

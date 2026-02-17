@@ -16,6 +16,83 @@ export interface PagedResponse<T> {
   hasNext: boolean;
 }
 
+// ============== Connection ==============
+export interface ConnectionStatusResponse {
+  isConfigured: boolean;
+  isConnected: boolean;
+  serverVersion?: string;
+  databaseName?: string;
+  host?: string;
+}
+
+export interface ConnectionSettingsResponse {
+  database: DatabaseSettingsResponse;
+  mappingFile: MappingFileSettingsResponse;
+}
+
+export interface DatabaseSettingsResponse {
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  timeout: number;
+}
+
+export interface MappingFileSettingsResponse {
+  path: string;
+  backupDirectory: string;
+}
+
+export interface SaveConnectionRequest {
+  database?: {
+    host: string;
+    port: number;
+    database: string;
+    username: string;
+    password: string;
+    timeout: number;
+  };
+  mappingFile?: {
+    path: string;
+    backupDirectory: string;
+  };
+}
+
+export interface TestConnectionRequest {
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  timeout: number;
+}
+
+export interface TestConnectionResponse {
+  success: boolean;
+  serverVersion?: string;
+  isNovaradDatabase: boolean;
+  errorMessage?: string;
+}
+
+export interface TestPathResponse {
+  exists: boolean;
+  isAccessible: boolean;
+  errorMessage?: string;
+}
+
+export interface BrowseResponse {
+  currentPath: string;
+  parent?: string;
+  entries: BrowseEntry[];
+}
+
+export interface BrowseEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size?: number;
+}
+
 // ============== Auth ==============
 export interface LoginRequest {
   username: string;
