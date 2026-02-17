@@ -6,7 +6,9 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -16,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { studyApi } from '@/lib/api';
-import { StudyDetail, Series, Dataset, getStudyStatusLabel } from '@/lib/types';
+import { StudyDetail, Series, Dataset, UpdateStudyRequest, getStudyStatusLabel, STUDY_STATUS_LABELS } from '@/lib/types';
 import {
   FileSearch,
   ArrowLeft,
@@ -31,8 +33,33 @@ import {
   Layers,
   Image as ImageIcon,
   Star,
+  Pencil,
+  Save,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const STATUS_OPTIONS = [
+  { value: 0, label: 'New' },
+  { value: 1, label: 'In Progress' },
+  { value: 2, label: 'Read' },
+  { value: 3, label: 'Final' },
+  { value: 4, label: 'Addendum' },
+  { value: 5, label: 'Cancelled' },
+  { value: 6, label: 'On Hold' },
+  { value: 7, label: 'Stat' },
+];
+
+const PRIORITY_OPTIONS = [
+  { value: 0, label: 'Normal' },
+  { value: 1, label: 'Level 1' },
+  { value: 2, label: 'Level 2' },
+  { value: 3, label: 'Level 3' },
+  { value: 4, label: 'Level 4' },
+  { value: 5, label: 'Level 5' },
+  { value: 6, label: 'Level 6' },
+  { value: 7, label: 'Stat' },
+];
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '—';
@@ -88,13 +115,17 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
   const [datasets, setDatasets] = useState<Record<number, Dataset[]>>({});
   const [datasetsLoading, setDatasetsLoading] = useState<number | null>(null);
 
+  // Edit mode
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState<UpdateStudyRequest>({});
+
   useEffect(() => {
     async function loadStudy() {
       setLoading(true);
       const res = await studyApi.getById(Number(id));
       if (res.success && res.data) {
         setStudy(res.data);
-        // Load series automatically
         setSeriesLoading(true);
         const seriesRes = await studyApi.getSeries(Number(id));
         if (seriesRes.success && seriesRes.data) {
@@ -109,6 +140,46 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
     loadStudy();
   }, [id]);
 
+  function startEditing() {
+    if (!study) return;
+    setEditForm({
+      status: study.status,
+      comments: study.comments ?? '',
+      priority: study.priority,
+      custom1: study.custom1 ?? '',
+      custom2: study.custom2 ?? '',
+      custom3: study.custom3 ?? '',
+      custom4: study.custom4 ?? '',
+      custom5: study.custom5 ?? '',
+      custom6: study.custom6 ?? '',
+    });
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setEditForm({});
+  }
+
+  async function handleSave() {
+    if (!study) return;
+    setSaving(true);
+    try {
+      const res = await studyApi.update(study.id, editForm);
+      if (res.success && res.data) {
+        setStudy(res.data);
+        setEditing(false);
+        toast.success('Study updated');
+      } else {
+        toast.error(res.message || 'Update failed');
+      }
+    } catch {
+      toast.error('Failed to update study');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleSeriesExpand(seriesId: number) {
     if (expandedSeries === seriesId) {
       setExpandedSeries(null);
@@ -117,7 +188,6 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
 
     setExpandedSeries(seriesId);
 
-    // Load datasets if not cached
     if (!datasets[seriesId]) {
       setDatasetsLoading(seriesId);
       const res = await studyApi.getDatasets(seriesId);
@@ -162,9 +232,26 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
         description={`${study.modality} study — ${formatDate(study.studyDate)}`}
         icon={FileSearch}
         actions={
-          <Button variant="outline" onClick={() => router.push('/studies')}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Search
-          </Button>
+          <div className="flex items-center gap-2">
+            {editing ? (
+              <>
+                <Button onClick={handleSave} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </Button>
+                <Button variant="outline" onClick={cancelEditing} disabled={saving} className="gap-2">
+                  <X className="h-4 w-4" /> Cancel
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={startEditing} className="gap-2">
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => router.push('/studies')}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </div>
         }
       />
 
@@ -213,22 +300,66 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
             <InfoRow label="Institution" value={study.institution} />
             <InfoRow label="Referring Physician" value={study.physicianName} />
             <InfoRow label="Radiologist" value={study.radiologistName} />
-            <InfoRow label="Priority" value={study.priority === 7 ? 'Stat' : study.priority === 0 ? 'Normal' : `Level ${study.priority}`} />
+            {editing ? (
+              <div className="flex justify-between items-center py-1.5">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Select
+                  value={String(editForm.status ?? study.status)}
+                  onValueChange={(v) => setEditForm({ ...editForm, status: Number(v) })}
+                >
+                  <SelectTrigger className="w-36 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={String(s.value)}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            {editing ? (
+              <div className="flex justify-between items-center py-1.5">
+                <span className="text-sm text-muted-foreground">Priority</span>
+                <Select
+                  value={String(editForm.priority ?? study.priority)}
+                  onValueChange={(v) => setEditForm({ ...editForm, priority: Number(v) })}
+                >
+                  <SelectTrigger className="w-36 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <SelectItem key={p.value} value={String(p.value)}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <InfoRow label="Priority" value={study.priority === 7 ? 'Stat' : study.priority === 0 ? 'Normal' : `Level ${study.priority}`} />
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Comments */}
-      {study.comments && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Comments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-wrap">{study.comments}</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Comments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {editing ? (
+            <textarea
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={editForm.comments ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, comments: e.target.value })}
+              placeholder="Add comments..."
+            />
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{study.comments || <span className="text-muted-foreground">No comments</span>}</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Metadata */}
       <Card>
@@ -244,10 +375,31 @@ export default function StudyDetailPage({ params }: { params: Promise<{ id: stri
             <InfoRow label="Modified" value={formatDateTime(study.modifiedDate)} />
             <InfoRow label="First Processed" value={formatDateTime(study.firstProcessedDate)} />
             <InfoRow label="Last Image Processed" value={formatDateTime(study.lastImageProcessedDate)} />
-            {[study.custom1, study.custom2, study.custom3, study.custom4, study.custom5, study.custom6].map(
-              (val, i) => val ? <InfoRow key={i} label={`Custom ${i + 1}`} value={val} /> : null
-            )}
           </div>
+          {editing ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+              {([1, 2, 3, 4, 5, 6] as const).map((n) => {
+                const key = `custom${n}` as keyof UpdateStudyRequest;
+                return (
+                  <div key={n} className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Custom {n}</Label>
+                    <Input
+                      value={(editForm[key] as string) ?? ''}
+                      onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                      className="h-8 text-sm"
+                      placeholder={`Custom ${n}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8">
+              {[study.custom1, study.custom2, study.custom3, study.custom4, study.custom5, study.custom6].map(
+                (val, i) => val ? <InfoRow key={i} label={`Custom ${i + 1}`} value={val} /> : null
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

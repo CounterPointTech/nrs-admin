@@ -53,8 +53,9 @@
     },
     {
       "id": "phase4-bulk-ops",
-      "name": "Phase 4: Bulk Operations (stretch)",
-      "status": "not_started"
+      "name": "Phase 4: Bulk Operations",
+      "status": "done",
+      "details": "Backend: UpdateStudyRequest + BulkUpdateStatusRequest DTOs with FluentValidation, StudyRepository.UpdateAsync (dynamic SET for editable fields), BulkUpdateStatusAsync (ANY(@Ids) batch), ExportSearchAsync (10k cap). StudiesController: PUT /api/v1/studies/{id}, POST /api/v1/studies/bulk-status, GET /api/v1/studies/export (CSV download). Frontend: Checkbox column on studies TanStack Table with RowSelectionState, bulk action bar (status change dropdown, clear selection), Export CSV button, study detail edit mode (status, priority, comments, custom 1-6 inline editing with save/cancel). Build verified."
     }
   ]
 }

@@ -148,6 +148,28 @@ export interface StudyDetail extends Study {
   lastImageProcessedDate?: string;
 }
 
+export interface UpdateStudyRequest {
+  status?: number;
+  comments?: string;
+  priority?: number;
+  custom1?: string;
+  custom2?: string;
+  custom3?: string;
+  custom4?: string;
+  custom5?: string;
+  custom6?: string;
+}
+
+export interface BulkUpdateStatusRequest {
+  studyIds: number[];
+  status: number;
+}
+
+export interface BulkUpdateResult {
+  updatedCount: number;
+  requestedCount: number;
+}
+
 export interface StudySearchFilters {
   patientName?: string;
   patientId?: string;

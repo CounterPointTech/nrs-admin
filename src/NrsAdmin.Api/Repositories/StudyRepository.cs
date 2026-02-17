@@ -213,6 +213,166 @@ public class StudyRepository : BaseRepository
         return datasets.ToList();
     }
 
+    public async Task<bool> UpdateAsync(long id, UpdateStudyRequest request)
+    {
+        var setClauses = new List<string>();
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", id);
+
+        if (request.Status.HasValue)
+        {
+            setClauses.Add("status = @Status");
+            parameters.Add("Status", request.Status.Value);
+        }
+        if (request.Comments is not null)
+        {
+            setClauses.Add("comments = @Comments");
+            parameters.Add("Comments", request.Comments);
+        }
+        if (request.Priority.HasValue)
+        {
+            setClauses.Add("priority = @Priority");
+            parameters.Add("Priority", request.Priority.Value);
+        }
+        if (request.Custom1 is not null)
+        {
+            setClauses.Add("custom_1 = @Custom1");
+            parameters.Add("Custom1", request.Custom1);
+        }
+        if (request.Custom2 is not null)
+        {
+            setClauses.Add("custom_2 = @Custom2");
+            parameters.Add("Custom2", request.Custom2);
+        }
+        if (request.Custom3 is not null)
+        {
+            setClauses.Add("custom_3 = @Custom3");
+            parameters.Add("Custom3", request.Custom3);
+        }
+        if (request.Custom4 is not null)
+        {
+            setClauses.Add("custom_4 = @Custom4");
+            parameters.Add("Custom4", request.Custom4);
+        }
+        if (request.Custom5 is not null)
+        {
+            setClauses.Add("custom_5 = @Custom5");
+            parameters.Add("Custom5", request.Custom5);
+        }
+        if (request.Custom6 is not null)
+        {
+            setClauses.Add("custom_6 = @Custom6");
+            parameters.Add("Custom6", request.Custom6);
+        }
+
+        if (setClauses.Count == 0)
+            return false;
+
+        setClauses.Add("modified_date = NOW()");
+
+        var sql = $"UPDATE pacs.studies SET {string.Join(", ", setClauses)} WHERE id = @Id";
+
+        await using var connection = await CreateConnectionAsync();
+        var rows = await connection.ExecuteAsync(sql, parameters);
+        return rows > 0;
+    }
+
+    public async Task<int> BulkUpdateStatusAsync(long[] studyIds, int status)
+    {
+        const string sql = """
+            UPDATE pacs.studies
+            SET status = @Status, modified_date = NOW()
+            WHERE id = ANY(@Ids)
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        return await connection.ExecuteAsync(sql, new { Ids = studyIds, Status = status });
+    }
+
+    public async Task<List<StudySearchResult>> ExportSearchAsync(StudySearchRequest request)
+    {
+        // Reuse the same WHERE clause logic but without pagination
+        var where = new StringBuilder();
+        var parameters = new DynamicParameters();
+
+        if (!string.IsNullOrWhiteSpace(request.PatientName))
+        {
+            where.Append(" AND (p.last_name ILIKE @PatientName OR p.first_name ILIKE @PatientName)");
+            parameters.Add("PatientName", $"%{request.PatientName}%");
+        }
+        if (!string.IsNullOrWhiteSpace(request.PatientId))
+        {
+            where.Append(" AND p.patient_id ILIKE @PatientId");
+            parameters.Add("PatientId", $"{request.PatientId}%");
+        }
+        if (!string.IsNullOrWhiteSpace(request.Accession))
+        {
+            where.Append(" AND s.accession ILIKE @Accession");
+            parameters.Add("Accession", $"{request.Accession}%");
+        }
+        if (!string.IsNullOrWhiteSpace(request.Modality))
+        {
+            where.Append(" AND s.modality = @Modality");
+            parameters.Add("Modality", request.Modality);
+        }
+        if (request.DateFrom.HasValue)
+        {
+            where.Append(" AND s.study_date >= @DateFrom");
+            parameters.Add("DateFrom", request.DateFrom.Value.Date);
+        }
+        if (request.DateTo.HasValue)
+        {
+            where.Append(" AND s.study_date < @DateTo");
+            parameters.Add("DateTo", request.DateTo.Value.Date.AddDays(1));
+        }
+        if (request.FacilityId.HasValue)
+        {
+            where.Append(" AND s.facility_id = @FacilityId");
+            parameters.Add("FacilityId", request.FacilityId.Value);
+        }
+        if (request.Status.HasValue)
+        {
+            where.Append(" AND s.status = @Status");
+            parameters.Add("Status", request.Status.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            where.Append("""
+                 AND (p.last_name ILIKE @Search OR p.first_name ILIKE @Search
+                      OR p.patient_id ILIKE @Search OR s.accession ILIKE @Search
+                      OR s.study_uid ILIKE @Search)
+                """);
+            parameters.Add("Search", $"%{request.Search}%");
+        }
+
+        var orderBy = ResolveSortColumn(request.SortBy);
+        var direction = request.SortDesc ? "DESC" : "ASC";
+
+        // Cap export at 10,000 rows to prevent memory issues
+        var sql = $"""
+            SELECT s.id AS Id, s.study_uid AS StudyUid, s.study_date AS StudyDate,
+                   s.accession AS Accession, s.modality AS Modality, s.status AS Status,
+                   s.study_tags AS StudyTags, s.facility_id AS FacilityId,
+                   f.name AS FacilityName, s.institution AS Institution,
+                   s.physician_id AS PhysicianId,
+                   p.patient_id AS PatientId, p.last_name AS LastName,
+                   p.first_name AS FirstName, p.gender AS Gender,
+                   p.birth_time AS BirthTime,
+                   (SELECT COUNT(*) FROM pacs.series sr WHERE sr.study = s.id) AS SeriesCount,
+                   (SELECT COALESCE(SUM(sr.num_images), 0) FROM pacs.series sr WHERE sr.study = s.id) AS ImageCount
+            FROM pacs.studies s
+            JOIN pacs.patients p ON s.patient = p.id
+            LEFT JOIN shared.facilities f ON s.facility_id = f.facility_id
+            WHERE 1=1 {where}
+            ORDER BY {orderBy} {direction}, s.id DESC
+            LIMIT 10000
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var results = await connection.QueryAsync<StudySearchResult>(sql, parameters);
+        return results.ToList();
+    }
+
     private static string ResolveSortColumn(string? sortBy)
     {
         if (string.IsNullOrWhiteSpace(sortBy) || !AllowedSortColumns.Contains(sortBy))

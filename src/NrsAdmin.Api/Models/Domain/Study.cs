@@ -26,6 +26,12 @@ public class StudySearchResult
     public int ImageCount { get; set; }
 }
 
+public class BulkUpdateResult
+{
+    public int UpdatedCount { get; set; }
+    public int RequestedCount { get; set; }
+}
+
 public class StudyDetail : StudySearchResult
 {
     public long PatientDbId { get; set; }

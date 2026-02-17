@@ -7,6 +7,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  RowSelectionState,
 } from '@tanstack/react-table';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
@@ -30,6 +32,7 @@ import {
   Facility,
   PagedResponse,
   getStudyStatusLabel,
+  STUDY_STATUS_LABELS,
 } from '@/lib/types';
 import {
   FileSearch,
@@ -44,6 +47,8 @@ import {
   X,
   SlidersHorizontal,
   Eye,
+  Download,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -89,6 +94,9 @@ export default function StudiesPage() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [sortBy, setSortBy] = useState<string>('studyDate');
   const [sortDesc, setSortDesc] = useState(true);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Filter form state
   const [filters, setFilters] = useState<StudySearchFilters>({});
@@ -103,6 +111,7 @@ export default function StudiesPage() {
 
   const executeSearch = useCallback(async (pageNum: number, currentFilters: StudySearchFilters, sort: string, desc: boolean) => {
     setLoading(true);
+    setRowSelection({});
     try {
       const res = await studyApi.search(pageNum, PAGE_SIZE, {
         ...currentFilters,
@@ -132,6 +141,7 @@ export default function StudiesPage() {
     setAppliedFilters({});
     setResults(null);
     setPage(1);
+    setRowSelection({});
   }
 
   function handlePageChange(newPage: number) {
@@ -155,6 +165,54 @@ export default function StudiesPage() {
     }
   }
 
+  // Bulk operations
+  const selectedStudyIds = useMemo(() => {
+    if (!results) return [];
+    return Object.keys(rowSelection)
+      .filter((key) => rowSelection[key])
+      .map((key) => results.items[Number(key)]?.id)
+      .filter(Boolean);
+  }, [rowSelection, results]);
+
+  const selectedCount = selectedStudyIds.length;
+
+  async function handleBulkStatusChange(newStatus: string) {
+    if (selectedCount === 0) return;
+    const status = Number(newStatus);
+    const label = STUDY_STATUS_LABELS[status] ?? `Status ${status}`;
+
+    setBulkLoading(true);
+    try {
+      const res = await studyApi.bulkUpdateStatus({
+        studyIds: selectedStudyIds,
+        status,
+      });
+      if (res.success && res.data) {
+        toast.success(`Updated ${res.data.updatedCount} ${res.data.updatedCount === 1 ? 'study' : 'studies'} to "${label}"`);
+        setRowSelection({});
+        executeSearch(page, appliedFilters, sortBy, sortDesc);
+      } else {
+        toast.error(res.message || 'Bulk update failed');
+      }
+    } catch {
+      toast.error('Bulk update failed');
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  async function handleExportCsv() {
+    setExportLoading(true);
+    try {
+      await studyApi.exportCsv(appliedFilters);
+      toast.success('CSV exported');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
   const activeFilterCount = Object.values(appliedFilters).filter(
     (v) => v !== undefined && v !== null && v !== ''
   ).length;
@@ -174,6 +232,25 @@ export default function StudiesPage() {
   }
 
   const columns = useMemo<ColumnDef<Study>[]>(() => [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+    },
     {
       id: 'patientName',
       header: () => <SortableHeader column="patientName" label="Patient" />,
@@ -264,6 +341,9 @@ export default function StudiesPage() {
     manualSorting: true,
     manualPagination: true,
     pageCount: results?.totalPages ?? 0,
+    state: { rowSelection },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
   });
 
   return (
@@ -273,22 +353,74 @@ export default function StudiesPage() {
         description="Search and manage PACS studies"
         icon={FileSearch}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setFiltersOpen(!filtersOpen)}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {activeFilterCount}
-              </Badge>
+          <div className="flex items-center gap-2">
+            {results && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleExportCsv}
+                disabled={exportLoading}
+              >
+                {exportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Export CSV
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </div>
         }
       />
+
+      {/* Bulk Action Bar */}
+      {selectedCount > 0 && (
+        <Card className="border-primary/50 bg-primary/5 animate-fade-in">
+          <CardContent className="py-3 flex items-center gap-4">
+            <Badge variant="secondary" className="text-sm">
+              {selectedCount} {selectedCount === 1 ? 'study' : 'studies'} selected
+            </Badge>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Change status to:</span>
+              <Select
+                onValueChange={handleBulkStatusChange}
+                disabled={bulkLoading}
+              >
+                <SelectTrigger className="w-40 h-8">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={String(s.value)}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {bulkLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setRowSelection({})}
+              className="ml-auto gap-1"
+            >
+              <X className="h-3.5 w-3.5" /> Clear selection
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search Filters */}
       {filtersOpen && (
@@ -447,7 +579,7 @@ export default function StudiesPage() {
                   {table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${row.getIsSelected() ? 'bg-primary/5' : ''}`}
                       onClick={() => router.push(`/studies/${row.original.id}`)}
                     >
                       {row.getVisibleCells().map((cell) => (

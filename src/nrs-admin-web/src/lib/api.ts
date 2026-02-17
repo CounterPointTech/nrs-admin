@@ -15,6 +15,9 @@ import {
   Study,
   StudyDetail,
   StudySearchFilters,
+  UpdateStudyRequest,
+  BulkUpdateStatusRequest,
+  BulkUpdateResult,
   Series,
   Dataset,
   PagedResponse,
@@ -324,11 +327,38 @@ export const studyApi = {
     return fetchWithAuth<StudyDetail>(`/api/v1/studies/${id}`);
   },
 
-  update: async (id: number, data: Partial<StudyDetail>): Promise<ApiResponse<StudyDetail>> => {
+  update: async (id: number, data: UpdateStudyRequest): Promise<ApiResponse<StudyDetail>> => {
     return fetchWithAuth<StudyDetail>(`/api/v1/studies/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  },
+
+  bulkUpdateStatus: async (request: BulkUpdateStatusRequest): Promise<ApiResponse<BulkUpdateResult>> => {
+    return fetchWithAuth<BulkUpdateResult>('/api/v1/studies/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  exportCsv: async (filters?: StudySearchFilters): Promise<void> => {
+    const tokens = getTokens();
+    const qs = filters ? buildQueryString(filters as Record<string, unknown>) : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/studies/export${qs}`, {
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
+    });
+    if (!response.ok) throw new Error('Export failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = response.headers.get('content-disposition')?.split('filename=')[1] ?? 'studies-export.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 
   getSeries: async (studyId: number): Promise<ApiResponse<Series[]>> => {
