@@ -11,5 +11,6 @@ public class User
     public int? PasswordFormat { get; set; }
     public bool UseAdAuthentication { get; set; }
     public bool IsLdapUser { get; set; }
+    public string? Domain { get; set; }
     public bool AccountIsLocked { get; set; }
 }

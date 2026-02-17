@@ -20,6 +20,10 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // Add connection.json config source (overrides appsettings.json when present)
+    var connectionJsonPath = Path.Combine(AppContext.BaseDirectory, "connection.json");
+    ((IConfigurationBuilder)builder.Configuration).Add(new ConnectionJsonConfigurationSource(connectionJsonPath));
+
     // Serilog
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -36,6 +40,7 @@ try
     builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("Database"));
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
     builder.Services.Configure<MappingFileSettings>(builder.Configuration.GetSection("MappingFile"));
+    builder.Services.Configure<LdapSettings>(builder.Configuration.GetSection("Ldap"));
 
     // Authentication
     var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
@@ -113,16 +118,20 @@ try
     {
         options.AddPolicy("NextJsDev", policy =>
         {
-            policy.WithOrigins("http://localhost:3000")
+            policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
         });
     });
 
+    // DI Registration — Connection
+    builder.Services.AddSingleton<ConnectionSettingsService>();
+
     // DI Registration — Auth
     builder.Services.AddSingleton<NovaradPasswordHasher>();
     builder.Services.AddSingleton<JwtTokenService>();
+    builder.Services.AddSingleton<ILdapAuthenticationService, LdapAuthenticationService>();
 
     // DI Registration — Repositories
     builder.Services.AddScoped<UserRepository>();
@@ -160,7 +169,9 @@ try
     app.UseAuthorization();
     app.MapControllers();
 
-    Log.Information("NRS Admin API starting on {Environment}", app.Environment.EnvironmentName);
+    var connectionService = app.Services.GetRequiredService<ConnectionSettingsService>();
+    Log.Information("NRS Admin API starting on {Environment} — DB configured: {IsConfigured}",
+        app.Environment.EnvironmentName, connectionService.IsConfigured);
     app.Run();
 }
 catch (Exception ex)

@@ -10,6 +10,7 @@ public class AuthService
     private readonly UserRepository _userRepository;
     private readonly NovaradPasswordHasher _passwordHasher;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly ILdapAuthenticationService _ldapAuthService;
     private readonly ILogger<AuthService> _logger;
 
     // In-memory refresh token store (keyed by userId → refreshToken + expiry)
@@ -20,11 +21,13 @@ public class AuthService
         UserRepository userRepository,
         NovaradPasswordHasher passwordHasher,
         JwtTokenService jwtTokenService,
+        ILdapAuthenticationService ldapAuthService,
         ILogger<AuthService> logger)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _jwtTokenService = jwtTokenService;
+        _ldapAuthService = ldapAuthService;
         _logger = logger;
     }
 
@@ -45,19 +48,26 @@ public class AuthService
 
         if (user.UseAdAuthentication || user.IsLdapUser)
         {
-            return ApiResponse<LoginResponse>.Fail("AD/LDAP authentication is not supported in NRS Admin. Use local credentials.");
+            var ldapResult = await _ldapAuthService.AuthenticateAsync(username, user.Domain, password);
+            if (!ldapResult.Success)
+            {
+                _logger.LogWarning("LDAP authentication failed for user: {Username}", username);
+                return ApiResponse<LoginResponse>.Fail(ldapResult.ErrorMessage ?? "Invalid username or password.");
+            }
         }
-
-        var isValid = _passwordHasher.VerifyPassword(
-            password,
-            user.Password ?? string.Empty,
-            user.PasswordSalt,
-            user.PasswordFormat);
-
-        if (!isValid)
+        else
         {
-            _logger.LogWarning("Invalid password for user: {Username}", username);
-            return ApiResponse<LoginResponse>.Fail("Invalid username or password.");
+            var isValid = _passwordHasher.VerifyPassword(
+                password,
+                user.Password ?? string.Empty,
+                user.PasswordSalt,
+                user.PasswordFormat);
+
+            if (!isValid)
+            {
+                _logger.LogWarning("Invalid password for user: {Username}", username);
+                return ApiResponse<LoginResponse>.Fail("Invalid username or password.");
+            }
         }
 
         var roles = await _userRepository.GetUserRolesAsync(user.UserId);

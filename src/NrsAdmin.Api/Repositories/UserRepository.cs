@@ -7,7 +7,7 @@ namespace NrsAdmin.Api.Repositories;
 
 public class UserRepository : BaseRepository
 {
-    public UserRepository(IOptions<DatabaseSettings> settings) : base(settings) { }
+    public UserRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<User?> GetByUsernameAsync(string username)
     {
@@ -15,7 +15,8 @@ public class UserRepository : BaseRepository
             SELECT user_id AS UserId, user_name AS UserName, first_name AS FirstName,
                    last_name AS LastName, password AS Password, password_salt AS PasswordSalt,
                    password_format AS PasswordFormat, use_ad_authentication AS UseAdAuthentication,
-                   is_ldap_user AS IsLdapUser, account_is_locked AS AccountIsLocked
+                   is_ldap_user AS IsLdapUser, domain AS Domain,
+                   account_is_locked AS AccountIsLocked
             FROM shared.users
             WHERE user_name = @Username AND is_visible = true
             """;
@@ -30,7 +31,8 @@ public class UserRepository : BaseRepository
             SELECT user_id AS UserId, user_name AS UserName, first_name AS FirstName,
                    last_name AS LastName, password AS Password, password_salt AS PasswordSalt,
                    password_format AS PasswordFormat, use_ad_authentication AS UseAdAuthentication,
-                   is_ldap_user AS IsLdapUser, account_is_locked AS AccountIsLocked
+                   is_ldap_user AS IsLdapUser, domain AS Domain,
+                   account_is_locked AS AccountIsLocked
             FROM shared.users
             WHERE user_id = @UserId AND is_visible = true
             """;
