@@ -13,6 +13,7 @@ public class ConnectionSettingsResponse
 {
     public DatabaseSettingsResponse Database { get; set; } = new();
     public MappingFileSettingsResponse MappingFile { get; set; } = new();
+    public ReportTemplateSettingsResponse ReportTemplate { get; set; } = new();
 }
 
 public class DatabaseSettingsResponse
@@ -28,6 +29,12 @@ public class DatabaseSettingsResponse
 public class MappingFileSettingsResponse
 {
     public string Path { get; set; } = string.Empty;
+    public string BackupDirectory { get; set; } = string.Empty;
+}
+
+public class ReportTemplateSettingsResponse
+{
+    public string Directory { get; set; } = string.Empty;
     public string BackupDirectory { get; set; } = string.Empty;
 }
 

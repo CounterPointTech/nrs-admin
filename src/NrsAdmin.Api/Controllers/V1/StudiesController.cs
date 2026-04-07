@@ -20,11 +20,16 @@ public class StudiesController : ControllerBase
     };
 
     private readonly StudyRepository _studyRepository;
+    private readonly RisRepository _risRepository;
     private readonly ILogger<StudiesController> _logger;
 
-    public StudiesController(StudyRepository studyRepository, ILogger<StudiesController> logger)
+    public StudiesController(
+        StudyRepository studyRepository,
+        RisRepository risRepository,
+        ILogger<StudiesController> logger)
     {
         _studyRepository = studyRepository;
+        _risRepository = risRepository;
         _logger = logger;
     }
 
@@ -44,6 +49,16 @@ public class StudiesController : ControllerBase
             return NotFound(ApiResponse<StudyDetail>.Fail($"Study {id} not found."));
 
         return Ok(ApiResponse<StudyDetail>.Ok(study));
+    }
+
+    [HttpGet("{id:long}/unified")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> GetUnified(long id)
+    {
+        var unified = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        if (unified is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(unified));
     }
 
     [HttpPut("{id:long}")]
@@ -122,6 +137,208 @@ public class StudiesController : ControllerBase
 
         var series = await _studyRepository.GetSeriesAsync(studyId);
         return Ok(ApiResponse<List<Series>>.Ok(series));
+    }
+
+    [HttpPut("series/{seriesId:long}")]
+    public async Task<ActionResult<ApiResponse<List<Series>>>> UpdateSeries(
+        long seriesId, [FromBody] UpdateSeriesRequest request)
+    {
+        var updated = await _studyRepository.UpdateSeriesAsync(seriesId, request);
+        if (!updated)
+            return BadRequest(ApiResponse<List<Series>>.Fail("No fields to update."));
+
+        _logger.LogInformation("Series {SeriesId} updated", seriesId);
+
+        // Return the refreshed series for the study this series belongs to
+        var series = await _studyRepository.GetSeriesForSeriesIdAsync(seriesId);
+        return Ok(ApiResponse<List<Series>>.Ok(series));
+    }
+
+    // ================================================================
+    // RIS Write Endpoints
+    // ================================================================
+
+    [HttpPut("{id:long}/ris-patient")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> UpdateRisPatientDetails(
+        long id, [FromBody] UpdateRisPatientDetailsRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var updated = await _risRepository.UpdatePatientDetailsAsync(study.PatientId, request);
+        if (!updated)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("No fields to update."));
+
+        _logger.LogInformation("RIS patient details updated for patient {PatientId} via study {StudyId}", study.PatientId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPut("{id:long}/ris-report/{reportId:long}")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> UpdateRisReport(
+        long id, long reportId, [FromBody] UpdateRisReportRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var updated = await _risRepository.UpdateReportAsync(reportId, request);
+        if (!updated)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("No fields to update."));
+
+        _logger.LogInformation("RIS report {ReportId} updated via study {StudyId}", reportId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPost("{id:long}/ris-report")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> CreateRisReport(
+        long id, [FromBody] CreateRisReportRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var reportId = await _risRepository.CreateReportAsync(request);
+
+        _logger.LogInformation("RIS report {ReportId} created on procedure {ProcedureId} via study {StudyId}",
+            reportId, request.ProcedureId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPut("{id:long}/ris-order/{orderId:long}")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> UpdateRisOrder(
+        long id, long orderId, [FromBody] UpdateRisOrderRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var updated = await _risRepository.UpdateOrderAsync(orderId, request);
+        if (!updated)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("No fields to update."));
+
+        _logger.LogInformation("RIS order {OrderId} updated via study {StudyId}", orderId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPut("{id:long}/ris-procedure/{procedureId:long}")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> UpdateRisProcedure(
+        long id, long procedureId, [FromBody] UpdateRisOrderProcedureRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var updated = await _risRepository.UpdateOrderProcedureAsync(procedureId, request);
+        if (!updated)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("No fields to update."));
+
+        _logger.LogInformation("RIS procedure {ProcedureId} updated via study {StudyId}", procedureId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPost("{id:long}/link")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> LinkStudy(
+        long id, [FromBody] LinkStudyRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var linked = await _risRepository.LinkStudyToOrderAsync(id, request.OrderId);
+        if (!linked)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("Failed to link study to order."));
+
+        _logger.LogInformation("Study {StudyId} linked to RIS order {OrderId}", id, request.OrderId);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPost("{id:long}/unlink")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> UnlinkStudy(long id)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var unlinked = await _risRepository.UnlinkStudyAsync(id);
+        if (!unlinked)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail("Failed to unlink study."));
+
+        _logger.LogInformation("Study {StudyId} unlinked from RIS orders", id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPost("{id:long}/merge-patient")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> MergePatient(
+        long id, [FromBody] PatientMergeRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        try
+        {
+            await _risRepository.MergePatientAsync(request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Patient merge failed for study {StudyId}", id);
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail($"Patient merge failed: {ex.Message}"));
+        }
+
+        _logger.LogInformation(
+            "Patient merge: {SourcePatient}/{SourceSite} → {TargetPatient}/{TargetSite} via study {StudyId}",
+            request.SourcePatientId, request.SourceSiteCode,
+            request.TargetPatientId, request.TargetSiteCode, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpGet("{id:long}/ris-orders/search")]
+    public async Task<ActionResult<ApiResponse<PagedResponse<RisOrder>>>> SearchRisOrders(
+        long id, [FromQuery] SearchRisOrdersRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<PagedResponse<RisOrder>>.Fail($"Study {id} not found."));
+
+        var result = await _risRepository.SearchOrdersForLinkingAsync(request);
+        return Ok(ApiResponse<PagedResponse<RisOrder>>.Ok(result));
+    }
+
+    [HttpPost("{id:long}/sync-field")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> SyncField(
+        long id, [FromBody] SyncFieldRequest request)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var synced = await _risRepository.SyncFieldAsync(id, request);
+        if (!synced)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail($"Failed to sync field '{request.FieldName}'."));
+
+        _logger.LogInformation(
+            "Field '{Field}' synced to {Target} for study {StudyId}",
+            request.FieldName, request.Target, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
     }
 
     private static string CsvEscape(string? value)

@@ -28,6 +28,7 @@ export interface ConnectionStatusResponse {
 export interface ConnectionSettingsResponse {
   database: DatabaseSettingsResponse;
   mappingFile: MappingFileSettingsResponse;
+  reportTemplate: ReportTemplateSettingsResponse;
 }
 
 export interface DatabaseSettingsResponse {
@@ -43,6 +44,11 @@ export interface MappingFileSettingsResponse {
   backupDirectory: string;
 }
 
+export interface ReportTemplateSettingsResponse {
+  directory: string;
+  backupDirectory: string;
+}
+
 export interface SaveConnectionRequest {
   database?: {
     host: string;
@@ -54,6 +60,10 @@ export interface SaveConnectionRequest {
   };
   mappingFile?: {
     path: string;
+    backupDirectory: string;
+  };
+  reportTemplate?: {
+    directory: string;
     backupDirectory: string;
   };
 }
@@ -361,141 +371,35 @@ export interface SiteSetting {
   lastUpdateDate: string;
 }
 
-// ============== HL7 Locations ==============
-export interface Hl7Location {
-  locationId: number;
-  address: string;
-  port?: number;
-  enabled: boolean;
-  cultureCode?: string;
-  productId: number;
-}
+export type SettingSource =
+  | 'shared'
+  | 'site'
+  | 'pacs'
+  | 'ris'
+  | 'object_store'
+  | 'pacs_options'
+  | 'ris_options';
 
-export interface Hl7LocationOption {
-  locationId: number;
+export interface UnifiedSetting {
   name: string;
   value?: string;
-  productId: number;
+  source: SettingSource;
+  sourceLabel: string;
+  usingDefault?: boolean;
+  lastUpdateDate?: string;
+  createdOnDate?: string;
 }
 
-export interface CreateHl7LocationRequest {
-  address: string;
-  port?: number;
-  enabled: boolean;
-  cultureCode?: string;
+export interface SettingsOverview {
+  total: number;
+  sources: SourceCount[];
 }
 
-export interface UpdateHl7LocationRequest extends CreateHl7LocationRequest {}
-
-export interface SaveHl7LocationOptionRequest {
-  name: string;
-  value?: string;
+export interface SourceCount {
+  source: SettingSource;
+  sourceLabel: string;
+  count: number;
 }
-
-// ============== HL7 Message Destinations ==============
-export interface Hl7MessageDestination {
-  destinationId: number;
-  address: string;
-  port: number;
-  application: string;
-  facility: string;
-  messageType: string;
-  eventType?: string;
-  enabled: boolean;
-  synchronous?: boolean;
-  cultureCode?: string;
-  productId: number;
-}
-
-export interface Hl7DistributionRule {
-  hl7DistributionRuleId: number;
-  destinationId: number;
-  field: string;
-  fieldValue: string;
-  messageType?: string;
-  productId: number;
-}
-
-export interface CreateHl7DestinationRequest {
-  address: string;
-  port: number;
-  application: string;
-  facility: string;
-  messageType: string;
-  eventType?: string;
-  enabled: boolean;
-  synchronous?: boolean;
-  cultureCode?: string;
-}
-
-export interface UpdateHl7DestinationRequest extends CreateHl7DestinationRequest {}
-
-export interface CreateHl7DistributionRuleRequest {
-  destinationId: number;
-  field: string;
-  fieldValue: string;
-  messageType?: string;
-}
-
-export interface UpdateHl7DistributionRuleRequest extends CreateHl7DistributionRuleRequest {}
-
-// ============== HL7 Field Mapping ==============
-export interface Hl7FieldMapping {
-  mappingId: number;
-  messageType: string;
-  eventType?: string;
-  parameterName: string;
-  segmentName: string;
-  field?: number;
-  component?: number;
-  subComponent?: number;
-  locationId?: string;
-  inboundTransform?: string;
-  outboundTransform?: string;
-  inboundTransformParameter?: string;
-  outboundTransformParameter?: string;
-  productId: number;
-}
-
-export interface CreateHl7FieldMappingRequest {
-  messageType: string;
-  eventType?: string;
-  parameterName: string;
-  segmentName: string;
-  field?: number;
-  component?: number;
-  subComponent?: number;
-  locationId?: string;
-  inboundTransform?: string;
-  outboundTransform?: string;
-  inboundTransformParameter?: string;
-  outboundTransformParameter?: string;
-}
-
-export interface UpdateHl7FieldMappingRequest extends CreateHl7FieldMappingRequest {}
-
-// ============== HL7 Message Forwarding ==============
-export interface Hl7MessageForwarding {
-  forwardingId: number;
-  address: string;
-  port: number;
-  message?: string;
-  event?: string;
-  externalKey?: string;
-  sendPostProcessing: boolean;
-  productId: number;
-}
-
-export interface CreateHl7ForwardingRequest {
-  address: string;
-  port: number;
-  message?: string;
-  event?: string;
-  externalKey?: string;
-  sendPostProcessing: boolean;
-}
-
-export interface UpdateHl7ForwardingRequest extends CreateHl7ForwardingRequest {}
 
 // ============== PACS Destinations ==============
 export interface PacsDestination {
@@ -580,3 +484,404 @@ export interface CreateRoutingZoneRequest {
 }
 
 export interface UpdateRoutingZoneRequest extends CreateRoutingZoneRequest {}
+
+// ============== Billing / CPT Codes ==============
+export interface BillingServiceCode {
+  serviceCodeId: number;
+  serviceCode: string;
+  description?: string;
+  modalityType?: string;
+  rvuWork?: number;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface CreateCptCodeRequest {
+  serviceCode: string;
+  description?: string;
+  modalityType?: string;
+  rvuWork?: number;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface UpdateCptCodeRequest extends CreateCptCodeRequest {}
+
+export interface CptCodeSearchFilters {
+  search?: string;
+  modalityType?: string;
+  sortBy?: string;
+  sortDesc?: boolean;
+}
+
+export interface CptImportRow {
+  serviceCode: string;
+  description?: string;
+  modalityType?: string;
+  rvuWork?: number;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface CptImportPreviewRow {
+  rowNumber: number;
+  data: CptImportRow;
+  isValid: boolean;
+  isDuplicate: boolean;
+  errors: string[];
+}
+
+export interface CptImportPreviewResponse {
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  duplicateRows: number;
+  rows: CptImportPreviewRow[];
+}
+
+export interface CptImportExecuteRequest {
+  rows: CptImportRow[];
+  overwriteExisting: boolean;
+}
+
+export interface CptImportExecuteResponse {
+  insertedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: string[];
+}
+
+// ============== ICD Codes ==============
+export interface IcdCode {
+  icdCodeId: string;
+  description?: string;
+  subCategoryId?: number;
+  icdCodeVersion: number;
+  icdCodeDisplay: string;
+  obsoleteDate?: string;
+  categoryName?: string;
+}
+
+export interface IcdCategory {
+  icdCategoryId: number;
+  parentId?: number;
+  description: string;
+  version: number;
+  first?: string;
+  last?: string;
+}
+
+export interface CreateIcdCodeRequest {
+  icdCodeId: string;
+  description?: string;
+  subCategoryId?: number;
+  icdCodeVersion: number;
+  icdCodeDisplay: string;
+}
+
+export interface UpdateIcdCodeRequest {
+  description?: string;
+  subCategoryId?: number;
+  icdCodeVersion: number;
+  icdCodeDisplay: string;
+}
+
+export interface IcdCodeSearchFilters {
+  search?: string;
+  version?: number;
+  categoryId?: number;
+  includeObsolete?: boolean;
+  sortBy?: string;
+  sortDesc?: boolean;
+}
+
+// ============== Report Templates ==============
+export interface ReportTemplateInfo {
+  name: string;
+  sizeBytes: number;
+  lastModifiedUtc: string;
+  usedByFacilities: string[];
+}
+
+export interface ReportTemplateBackup {
+  fileName: string;
+  createdAt: string;
+  sizeBytes: number;
+  originalTemplate: string;
+}
+
+export interface TemplatePlaceholder {
+  name: string;
+  tag: string;
+  description: string;
+  category: string;
+  sampleValue: string;
+}
+
+export interface TemplateSection {
+  name: string;
+  startTag: string;
+  endTag: string;
+  description: string;
+}
+
+export interface SaveReportTemplateRequest {
+  content: string;
+}
+
+export interface CreateReportTemplateRequest {
+  name: string;
+  content: string;
+}
+
+export interface DuplicateReportTemplateRequest {
+  newName: string;
+}
+
+export interface RenderPreviewRequest {
+  content: string;
+}
+
+// ============== RIS / Unified Study ==============
+
+export type LinkMethod = 'None' | 'Accession' | 'StudyUid' | 'Both';
+
+export interface StudyRisLink {
+  linkMethod: LinkMethod;
+  orderId?: number;
+  accessionNumber?: string;
+  studyUid?: string;
+}
+
+export interface RisOrder {
+  orderId: number;
+  patientId: string;
+  siteCode: string;
+  status?: string;
+  accessionNumber?: string;
+  description?: string;
+  patientComplaint?: string;
+  physicianReason?: string;
+  notes?: string;
+  referringPhysicianId?: number;
+  referringPhysicianName?: string;
+  consultingPhysicians?: string;
+  patientWeight?: number;
+  creationDate?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+  customField4?: string;
+}
+
+export interface RisOrderProcedure {
+  procedureId: number;
+  orderId: number;
+  studyUid?: string;
+  status?: string;
+  procedureName?: string;
+  modalityId?: number;
+  modalityName?: string;
+  modalityType?: string;
+  assignedPhysicianId?: number;
+  assignedPhysicianName?: string;
+  statFlag: boolean;
+  notes?: string;
+  schedulerNotes?: string;
+  patientClass?: string;
+  patientLocation?: string;
+  visitNumber?: string;
+  procedureDateStart?: string;
+  procedureDateEnd?: string;
+  checkInTime?: string;
+  creationDate?: string;
+  modifiedDate?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+  steps: RisProcedureStep[];
+}
+
+export interface RisProcedureStep {
+  procedureId: number;
+  stepNumber: number;
+  status?: string;
+  description?: string;
+  completionDate?: string;
+  completedByUserId?: number;
+  isDisabled: boolean;
+}
+
+export interface RisReport {
+  reportId: number;
+  procedureId: number;
+  reportType: string;
+  status?: string;
+  reportText?: string;
+  reportFormat?: string;
+  requiresCorrection: boolean;
+  signedDate?: string;
+  transcribedDate?: string;
+  signingPhysicianId?: number;
+  signingPhysicianName?: string;
+  reportingPhysicianId?: number;
+  reportingPhysicianName?: string;
+  creationDate?: string;
+  notes?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface RisPatientDemographics {
+  patientId: string;
+  siteCode: string;
+  personId: number;
+  firstName?: string;
+  lastName?: string;
+  middleInitial?: string;
+  dateOfBirth?: string;
+  sex?: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  homePhone?: string;
+  workPhone?: string;
+  mobilePhone?: string;
+  email?: string;
+  healthNumber?: string;
+  notes?: string;
+  emergencyContact?: string;
+  emergencyContactPhone?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface DiscrepancyField {
+  fieldName: string;
+  pacsValue?: string;
+  risValue?: string;
+}
+
+export interface PatientComparison {
+  pacsPatientId: string;
+  pacsFirstName?: string;
+  pacsLastName?: string;
+  pacsMiddleName?: string;
+  pacsGender?: string;
+  pacsBirthTime?: string;
+  risPatientId?: string;
+  risFirstName?: string;
+  risLastName?: string;
+  risMiddleInitial?: string;
+  risSex?: string;
+  risDateOfBirth?: string;
+  discrepancies: DiscrepancyField[];
+}
+
+export interface UnifiedStudyDetail {
+  study: StudyDetail;
+  link: StudyRisLink;
+  patientComparison: PatientComparison;
+  orders: RisOrder[];
+  procedures: RisOrderProcedure[];
+  reports: RisReport[];
+  risPatient?: RisPatientDemographics;
+}
+
+// RIS edit request types
+export interface UpdateRisOrderRequest {
+  description?: string;
+  notes?: string;
+  patientComplaint?: string;
+  physicianReason?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+  customField4?: string;
+}
+
+export interface UpdateRisOrderProcedureRequest {
+  notes?: string;
+  schedulerNotes?: string;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface UpdateSeriesRequest {
+  modality?: string;
+  description?: string;
+}
+
+export interface UpdateRisReportRequest {
+  reportText?: string;
+  notes?: string;
+  status?: string;
+  reportType?: string;
+  requiresCorrection?: boolean;
+  customField1?: string;
+  customField2?: string;
+  customField3?: string;
+}
+
+export interface CreateRisReportRequest {
+  procedureId: number;
+  reportType: string;
+  status?: string;
+  reportText?: string;
+  reportFormat?: string;
+  notes?: string;
+}
+
+export interface UpdateRisPatientDetailsRequest {
+  address1?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  homePhone?: string;
+  workPhone?: string;
+  mobilePhone?: string;
+  email?: string;
+  healthNumber?: string;
+  emergencyContact?: string;
+  emergencyContactPhone?: string;
+  notes?: string;
+}
+
+export interface LinkStudyRequest {
+  orderId: number;
+}
+
+export interface PatientMergeRequest {
+  targetPatientId: string;
+  targetSiteCode: string;
+  sourcePatientId: string;
+  sourceSiteCode: string;
+  moveOrders: boolean;
+  moveDocuments: boolean;
+}
+
+export interface SearchRisOrdersFilters {
+  accessionNumber?: string;
+  patientId?: string;
+  patientName?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export type SyncTarget = 'Pacs' | 'Ris' | 'Both';
+
+export interface SyncFieldRequest {
+  fieldName: string;
+  value?: string;
+  target: SyncTarget;
+}

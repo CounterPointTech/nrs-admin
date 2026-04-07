@@ -31,23 +31,9 @@ import {
   DashboardStats,
   SharedSetting,
   SiteSetting,
-  Hl7Location,
-  Hl7LocationOption,
-  CreateHl7LocationRequest,
-  UpdateHl7LocationRequest,
-  SaveHl7LocationOptionRequest,
-  Hl7MessageDestination,
-  Hl7DistributionRule,
-  CreateHl7DestinationRequest,
-  UpdateHl7DestinationRequest,
-  CreateHl7DistributionRuleRequest,
-  UpdateHl7DistributionRuleRequest,
-  Hl7FieldMapping,
-  CreateHl7FieldMappingRequest,
-  UpdateHl7FieldMappingRequest,
-  Hl7MessageForwarding,
-  CreateHl7ForwardingRequest,
-  UpdateHl7ForwardingRequest,
+  UnifiedSetting,
+  SettingsOverview,
+  SettingSource,
   PacsDestination,
   CreatePacsDestinationRequest,
   UpdatePacsDestinationRequest,
@@ -55,6 +41,38 @@ import {
   RoutingZone,
   CreateRoutingZoneRequest,
   UpdateRoutingZoneRequest,
+  BillingServiceCode,
+  CreateCptCodeRequest,
+  UpdateCptCodeRequest,
+  CptCodeSearchFilters,
+  CptImportPreviewResponse,
+  CptImportExecuteRequest,
+  CptImportExecuteResponse,
+  IcdCode,
+  IcdCategory,
+  CreateIcdCodeRequest,
+  UpdateIcdCodeRequest,
+  IcdCodeSearchFilters,
+  ReportTemplateInfo,
+  ReportTemplateBackup,
+  TemplatePlaceholder,
+  TemplateSection,
+  SaveReportTemplateRequest,
+  CreateReportTemplateRequest,
+  DuplicateReportTemplateRequest,
+  RenderPreviewRequest,
+  UnifiedStudyDetail,
+  UpdateRisOrderRequest,
+  UpdateRisOrderProcedureRequest,
+  UpdateRisPatientDetailsRequest,
+  UpdateSeriesRequest,
+  UpdateRisReportRequest,
+  CreateRisReportRequest,
+  LinkStudyRequest,
+  PatientMergeRequest,
+  SearchRisOrdersFilters,
+  SyncFieldRequest,
+  RisOrder,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -112,20 +130,28 @@ async function fetchWithAuth<T>(
     });
 
     // Handle 401 - try to refresh token
-    if (response.status === 401 && tokens.refreshToken) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
-        const retryResponse = await fetch(`${API_BASE_URL}${url}`, {
-          ...options,
-          headers,
-        });
-        const retryData = await retryResponse.json();
-        if (typeof retryData === 'object' && retryData !== null && 'success' in retryData) {
-          return retryData;
+    if (response.status === 401) {
+      if (tokens.refreshToken) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+          const retryResponse = await fetch(`${API_BASE_URL}${url}`, {
+            ...options,
+            headers,
+          });
+          const retryData = await retryResponse.json();
+          if (typeof retryData === 'object' && retryData !== null && 'success' in retryData) {
+            return retryData;
+          }
+          return { success: true, data: retryData } as ApiResponse<T>;
         }
-        return { success: true, data: retryData } as ApiResponse<T>;
       }
+      // Refresh failed or no refresh token — session expired, redirect to login
+      clearTokens();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      return { success: false, message: 'Session expired' };
     }
 
     if (!response.ok) {
@@ -154,7 +180,21 @@ async function fetchWithAuth<T>(
   }
 }
 
+// Dedup: if a refresh is already in-flight, reuse that promise
+let refreshPromise: Promise<boolean> | null = null;
+
 async function refreshAccessToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = doRefresh();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+async function doRefresh(): Promise<boolean> {
   const tokens = getTokens();
   if (!tokens.accessToken || !tokens.refreshToken) return false;
 
@@ -169,7 +209,6 @@ async function refreshAccessToken(): Promise<boolean> {
     });
 
     if (!response.ok) {
-      clearTokens();
       return false;
     }
 
@@ -180,7 +219,6 @@ async function refreshAccessToken(): Promise<boolean> {
     }
     return false;
   } catch {
-    clearTokens();
     return false;
   }
 }
@@ -448,6 +486,125 @@ export const studyApi = {
   getDatasets: async (seriesId: number): Promise<ApiResponse<Dataset[]>> => {
     return fetchWithAuth<Dataset[]>(`/api/v1/series/${seriesId}/datasets`);
   },
+
+  updateSeries: async (seriesId: number, data: UpdateSeriesRequest): Promise<ApiResponse<Series[]>> => {
+    return fetchWithAuth<Series[]>(`/api/v1/studies/series/${seriesId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Unified study detail (PACS + RIS)
+  getUnified: async (id: number): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${id}/unified`);
+  },
+
+  // RIS patient details editing
+  updateRisPatientDetails: async (
+    studyId: number,
+    data: UpdateRisPatientDetailsRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/ris-patient`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // RIS report editing
+  updateRisReport: async (
+    studyId: number,
+    reportId: number,
+    data: UpdateRisReportRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/ris-report/${reportId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createRisReport: async (
+    studyId: number,
+    data: CreateRisReportRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/ris-report`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // RIS order editing
+  updateRisOrder: async (
+    studyId: number,
+    orderId: number,
+    data: UpdateRisOrderRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/ris-order/${orderId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // RIS procedure editing
+  updateRisProcedure: async (
+    studyId: number,
+    procedureId: number,
+    data: UpdateRisOrderProcedureRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(
+      `/api/v1/studies/${studyId}/ris-procedure/${procedureId}`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    );
+  },
+
+  // Link study to RIS order
+  linkToOrder: async (
+    studyId: number,
+    request: LinkStudyRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/link`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  // Unlink study from RIS
+  unlinkOrder: async (studyId: number): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/unlink`, {
+      method: 'POST',
+    });
+  },
+
+  // Patient merge
+  mergePatient: async (
+    studyId: number,
+    request: PatientMergeRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/merge-patient`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  // Search RIS orders for linking
+  searchRisOrders: async (
+    studyId: number,
+    params: SearchRisOrdersFilters
+  ): Promise<ApiResponse<PagedResponse<RisOrder>>> => {
+    return fetchWithAuth<PagedResponse<RisOrder>>(
+      `/api/v1/studies/${studyId}/ris-orders/search${buildQueryString(params as Record<string, unknown>)}`
+    );
+  },
+
+  // Field sync between PACS and RIS
+  syncField: async (
+    studyId: number,
+    request: SyncFieldRequest
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/sync-field`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
 };
 
 // ============== Dashboard API ==============
@@ -492,174 +649,31 @@ export const settingsApi = {
       body: JSON.stringify({ value }),
     });
   },
-};
 
-// ============== HL7 Locations API ==============
-export const hl7LocationApi = {
-  getAll: async (): Promise<ApiResponse<Hl7Location[]>> => {
-    return fetchWithAuth<Hl7Location[]>('/api/v1/hl7/locations');
+  // Unified endpoints
+  getAll: async (): Promise<ApiResponse<UnifiedSetting[]>> => {
+    return fetchWithAuth<UnifiedSetting[]>('/api/v1/settings/all');
   },
 
-  getById: async (id: number): Promise<ApiResponse<Hl7Location>> => {
-    return fetchWithAuth<Hl7Location>(`/api/v1/hl7/locations/${id}`);
+  getOverview: async (): Promise<ApiResponse<SettingsOverview>> => {
+    return fetchWithAuth<SettingsOverview>('/api/v1/settings/overview');
   },
 
-  create: async (request: CreateHl7LocationRequest): Promise<ApiResponse<Hl7Location>> => {
-    return fetchWithAuth<Hl7Location>('/api/v1/hl7/locations', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  update: async (id: number, request: UpdateHl7LocationRequest): Promise<ApiResponse<Hl7Location>> => {
-    return fetchWithAuth<Hl7Location>(`/api/v1/hl7/locations/${id}`, {
+  updateUnified: async (source: SettingSource, name: string, value?: string): Promise<ApiResponse<unknown>> => {
+    const routeMap: Record<SettingSource, string> = {
+      shared: 'shared',
+      site: 'site',
+      pacs: 'pacs',
+      ris: 'ris',
+      object_store: 'object-store',
+      pacs_options: 'pacs-options',
+      ris_options: 'ris-options',
+    };
+    const route = routeMap[source];
+    return fetchWithAuth(`/api/v1/settings/${route}/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: JSON.stringify(request),
+      body: JSON.stringify({ value }),
     });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/locations/${id}`, { method: 'DELETE' });
-  },
-
-  getOptions: async (locationId: number): Promise<ApiResponse<Hl7LocationOption[]>> => {
-    return fetchWithAuth<Hl7LocationOption[]>(`/api/v1/hl7/locations/${locationId}/options`);
-  },
-
-  upsertOption: async (locationId: number, request: SaveHl7LocationOptionRequest): Promise<ApiResponse<Hl7LocationOption>> => {
-    return fetchWithAuth<Hl7LocationOption>(`/api/v1/hl7/locations/${locationId}/options`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    });
-  },
-
-  deleteOption: async (locationId: number, name: string): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/locations/${locationId}/options/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
-// ============== HL7 Destinations API ==============
-export const hl7DestinationApi = {
-  getAll: async (): Promise<ApiResponse<Hl7MessageDestination[]>> => {
-    return fetchWithAuth<Hl7MessageDestination[]>('/api/v1/hl7/destinations');
-  },
-
-  getById: async (id: number): Promise<ApiResponse<Hl7MessageDestination>> => {
-    return fetchWithAuth<Hl7MessageDestination>(`/api/v1/hl7/destinations/${id}`);
-  },
-
-  create: async (request: CreateHl7DestinationRequest): Promise<ApiResponse<Hl7MessageDestination>> => {
-    return fetchWithAuth<Hl7MessageDestination>('/api/v1/hl7/destinations', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  update: async (id: number, request: UpdateHl7DestinationRequest): Promise<ApiResponse<Hl7MessageDestination>> => {
-    return fetchWithAuth<Hl7MessageDestination>(`/api/v1/hl7/destinations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/destinations/${id}`, { method: 'DELETE' });
-  },
-
-  getRules: async (destinationId: number): Promise<ApiResponse<Hl7DistributionRule[]>> => {
-    return fetchWithAuth<Hl7DistributionRule[]>(`/api/v1/hl7/destinations/${destinationId}/rules`);
-  },
-
-  getAllRules: async (): Promise<ApiResponse<Hl7DistributionRule[]>> => {
-    return fetchWithAuth<Hl7DistributionRule[]>('/api/v1/hl7/destinations/rules');
-  },
-
-  createRule: async (request: CreateHl7DistributionRuleRequest): Promise<ApiResponse<Hl7DistributionRule>> => {
-    return fetchWithAuth<Hl7DistributionRule>('/api/v1/hl7/destinations/rules', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  updateRule: async (id: number, request: UpdateHl7DistributionRuleRequest): Promise<ApiResponse<Hl7DistributionRule>> => {
-    return fetchWithAuth<Hl7DistributionRule>(`/api/v1/hl7/destinations/rules/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    });
-  },
-
-  deleteRule: async (id: number): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/destinations/rules/${id}`, { method: 'DELETE' });
-  },
-};
-
-// ============== HL7 Field Mapping API ==============
-export const hl7FieldMappingApi = {
-  getAll: async (messageType?: string, locationId?: string): Promise<ApiResponse<Hl7FieldMapping[]>> => {
-    return fetchWithAuth<Hl7FieldMapping[]>(
-      `/api/v1/hl7/field-mapping${buildQueryString({ messageType, locationId })}`
-    );
-  },
-
-  getById: async (id: number): Promise<ApiResponse<Hl7FieldMapping>> => {
-    return fetchWithAuth<Hl7FieldMapping>(`/api/v1/hl7/field-mapping/${id}`);
-  },
-
-  getMessageTypes: async (): Promise<ApiResponse<string[]>> => {
-    return fetchWithAuth<string[]>('/api/v1/hl7/field-mapping/message-types');
-  },
-
-  getLocations: async (): Promise<ApiResponse<(string | null)[]>> => {
-    return fetchWithAuth<(string | null)[]>('/api/v1/hl7/field-mapping/locations');
-  },
-
-  create: async (request: CreateHl7FieldMappingRequest): Promise<ApiResponse<Hl7FieldMapping>> => {
-    return fetchWithAuth<Hl7FieldMapping>('/api/v1/hl7/field-mapping', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  update: async (id: number, request: UpdateHl7FieldMappingRequest): Promise<ApiResponse<Hl7FieldMapping>> => {
-    return fetchWithAuth<Hl7FieldMapping>(`/api/v1/hl7/field-mapping/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/field-mapping/${id}`, { method: 'DELETE' });
-  },
-};
-
-// ============== HL7 Forwarding API ==============
-export const hl7ForwardingApi = {
-  getAll: async (): Promise<ApiResponse<Hl7MessageForwarding[]>> => {
-    return fetchWithAuth<Hl7MessageForwarding[]>('/api/v1/hl7/forwarding');
-  },
-
-  getById: async (id: number): Promise<ApiResponse<Hl7MessageForwarding>> => {
-    return fetchWithAuth<Hl7MessageForwarding>(`/api/v1/hl7/forwarding/${id}`);
-  },
-
-  create: async (request: CreateHl7ForwardingRequest): Promise<ApiResponse<Hl7MessageForwarding>> => {
-    return fetchWithAuth<Hl7MessageForwarding>('/api/v1/hl7/forwarding', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  update: async (id: number, request: UpdateHl7ForwardingRequest): Promise<ApiResponse<Hl7MessageForwarding>> => {
-    return fetchWithAuth<Hl7MessageForwarding>(`/api/v1/hl7/forwarding/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(request),
-    });
-  },
-
-  delete: async (id: number): Promise<ApiResponse<void>> => {
-    return fetchWithAuth<void>(`/api/v1/hl7/forwarding/${id}`, { method: 'DELETE' });
   },
 };
 
@@ -724,5 +738,213 @@ export const routingZoneApi = {
 
   delete: async (id: number): Promise<ApiResponse<void>> => {
     return fetchWithAuth<void>(`/api/v1/pacs/routing-zones/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============== CPT Codes API ==============
+export const cptCodeApi = {
+  search: async (
+    page = 1,
+    pageSize = 50,
+    filters?: CptCodeSearchFilters
+  ): Promise<ApiResponse<PagedResponse<BillingServiceCode>>> => {
+    return fetchWithAuth<PagedResponse<BillingServiceCode>>(
+      `/api/v1/cpt-codes${buildQueryString({ page, pageSize, ...filters })}`
+    );
+  },
+
+  getById: async (id: number): Promise<ApiResponse<BillingServiceCode>> => {
+    return fetchWithAuth<BillingServiceCode>(`/api/v1/cpt-codes/${id}`);
+  },
+
+  getModalityTypes: async (): Promise<ApiResponse<string[]>> => {
+    return fetchWithAuth<string[]>('/api/v1/cpt-codes/modality-types');
+  },
+
+  create: async (request: CreateCptCodeRequest): Promise<ApiResponse<BillingServiceCode>> => {
+    return fetchWithAuth<BillingServiceCode>('/api/v1/cpt-codes', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: number, request: UpdateCptCodeRequest): Promise<ApiResponse<BillingServiceCode>> => {
+    return fetchWithAuth<BillingServiceCode>(`/api/v1/cpt-codes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/cpt-codes/${id}`, { method: 'DELETE' });
+  },
+
+  exportCsv: async (filters?: CptCodeSearchFilters): Promise<void> => {
+    const tokens = getTokens();
+    const qs = filters ? buildQueryString(filters as Record<string, unknown>) : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/cpt-codes/export${qs}`, {
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
+    });
+    if (!response.ok) throw new Error('Export failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = response.headers.get('content-disposition')?.split('filename=')[1] ?? 'cpt-codes-export.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  importPreview: async (file: File): Promise<ApiResponse<CptImportPreviewResponse>> => {
+    const tokens = getTokens();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/cpt-codes/import/preview`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokens.accessToken}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+      if (typeof data === 'object' && data !== null && 'success' in data) {
+        return data;
+      }
+      return { success: true, data } as ApiResponse<CptImportPreviewResponse>;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Import preview failed',
+      };
+    }
+  },
+
+  importExecute: async (request: CptImportExecuteRequest): Promise<ApiResponse<CptImportExecuteResponse>> => {
+    return fetchWithAuth<CptImportExecuteResponse>('/api/v1/cpt-codes/import/execute', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+};
+
+// ============== ICD Codes API ==============
+export const icdCodeApi = {
+  search: async (
+    page = 1,
+    pageSize = 50,
+    filters?: IcdCodeSearchFilters
+  ): Promise<ApiResponse<PagedResponse<IcdCode>>> => {
+    return fetchWithAuth<PagedResponse<IcdCode>>(
+      `/api/v1/icd-codes${buildQueryString({ page, pageSize, ...filters })}`
+    );
+  },
+
+  getById: async (id: string): Promise<ApiResponse<IcdCode>> => {
+    return fetchWithAuth<IcdCode>(`/api/v1/icd-codes/${encodeURIComponent(id)}`);
+  },
+
+  getCategories: async (version?: number): Promise<ApiResponse<IcdCategory[]>> => {
+    return fetchWithAuth<IcdCategory[]>(
+      `/api/v1/icd-codes/categories${buildQueryString({ version })}`
+    );
+  },
+
+  create: async (request: CreateIcdCodeRequest): Promise<ApiResponse<IcdCode>> => {
+    return fetchWithAuth<IcdCode>('/api/v1/icd-codes', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: string, request: UpdateIcdCodeRequest): Promise<ApiResponse<IcdCode>> => {
+    return fetchWithAuth<IcdCode>(`/api/v1/icd-codes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/icd-codes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  markObsolete: async (id: string): Promise<ApiResponse<IcdCode>> => {
+    return fetchWithAuth<IcdCode>(`/api/v1/icd-codes/${encodeURIComponent(id)}/obsolete`, {
+      method: 'POST',
+    });
+  },
+
+  restore: async (id: string): Promise<ApiResponse<IcdCode>> => {
+    return fetchWithAuth<IcdCode>(`/api/v1/icd-codes/${encodeURIComponent(id)}/restore`, {
+      method: 'POST',
+    });
+  },
+};
+
+// ============== Report Templates API ==============
+export const reportTemplateApi = {
+  list: async (): Promise<ApiResponse<ReportTemplateInfo[]>> => {
+    return fetchWithAuth<ReportTemplateInfo[]>('/api/v1/report-templates');
+  },
+
+  read: async (name: string): Promise<ApiResponse<string>> => {
+    return fetchWithAuth<string>(`/api/v1/report-templates/${encodeURIComponent(name)}`);
+  },
+
+  save: async (name: string, request: SaveReportTemplateRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/report-templates/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  create: async (request: CreateReportTemplateRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>('/api/v1/report-templates', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (name: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/report-templates/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  duplicate: async (name: string, request: DuplicateReportTemplateRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/report-templates/${encodeURIComponent(name)}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  listBackups: async (): Promise<ApiResponse<ReportTemplateBackup[]>> => {
+    return fetchWithAuth<ReportTemplateBackup[]>('/api/v1/report-templates/backups');
+  },
+
+  restoreBackup: async (fileName: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/report-templates/backups/restore/${encodeURIComponent(fileName)}`, {
+      method: 'POST',
+    });
+  },
+
+  getPlaceholders: async (): Promise<ApiResponse<TemplatePlaceholder[]>> => {
+    return fetchWithAuth<TemplatePlaceholder[]>('/api/v1/report-templates/placeholders');
+  },
+
+  getSections: async (): Promise<ApiResponse<TemplateSection[]>> => {
+    return fetchWithAuth<TemplateSection[]>('/api/v1/report-templates/sections');
+  },
+
+  renderPreview: async (request: RenderPreviewRequest): Promise<ApiResponse<string>> => {
+    return fetchWithAuth<string>('/api/v1/report-templates/preview', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
   },
 };

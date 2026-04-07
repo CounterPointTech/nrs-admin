@@ -1,69 +1,43 @@
 {
-  "session_id": "2026-02-17-remote-connection-setup",
-  "started_at": "2026-02-17T17:00:00Z",
-  "last_updated": "2026-02-17T19:00:00Z",
+  "session_id": "2026-04-06-unified-study-editor-and-route-queue",
+  "started_at": "2026-04-06T14:00:00Z",
+  "last_updated": "2026-04-07T04:00:00Z",
   "project": "NRS Admin",
-  "objective": "Remote connection & mapping file configuration feature. AD/LDAP auth support next.",
+  "objective": "Built unified PACS/RIS study editor with tabbed + panel view layouts. Added report editing, series editing, patient merge, field sync between PACS↔RIS. Fixed dashboard 500 (concurrent Npgsql queries) and auth 401 redirect. Next: route queue management.",
   "current_task": {
-    "description": "Remote connection config implemented. Needs testing. AD/LDAP auth support requested.",
-    "status": "in_progress"
-  },
-  "workflow": {
-    "current_phase": "Connection Config + AD/LDAP Auth",
-    "phases": {
-      "phase1": "complete",
-      "phase2": "complete",
-      "phase3": "complete",
-      "phase4": "complete",
-      "phase5": "complete",
-      "phase6": "complete",
-      "connection_config": "implemented_needs_testing",
-      "ad_ldap_auth": "not_started"
-    }
+    "description": "Plan route queue management UI — allow admins to view, edit, retry, and manage the pacs.route_queue, route_errors, and route_history tables",
+    "status": "planning"
   },
   "files_created": [
-    "src/NrsAdmin.Api/Configuration/ConnectionSettings.cs",
-    "src/NrsAdmin.Api/Configuration/ConnectionJsonConfigurationSource.cs",
-    "src/NrsAdmin.Api/Services/ConnectionSettingsService.cs",
-    "src/NrsAdmin.Api/Controllers/V1/ConnectionController.cs",
-    "src/NrsAdmin.Api/Models/Requests/ConnectionRequests.cs",
-    "src/NrsAdmin.Api/Models/Responses/ConnectionResponses.cs",
-    "src/NrsAdmin.Api/Validators/ConnectionValidators.cs",
-    "src/nrs-admin-web/src/app/setup/page.tsx",
-    "src/nrs-admin-web/src/components/file-browser-dialog.tsx"
+    "src/NrsAdmin.Api/Models/Domain/RisModels.cs",
+    "src/NrsAdmin.Api/Repositories/RisRepository.cs",
+    "src/NrsAdmin.Api/Models/Requests/RisRequests.cs",
+    "src/NrsAdmin.Api/Validators/RisValidators.cs",
+    "src/nrs-admin-web/src/components/studies/sync-field-row.tsx",
+    "src/nrs-admin-web/src/components/studies/study-overview-tab.tsx",
+    "src/nrs-admin-web/src/components/studies/patient-comparison-tab.tsx",
+    "src/nrs-admin-web/src/components/studies/orders-procedures-tab.tsx",
+    "src/nrs-admin-web/src/components/studies/reports-tab.tsx",
+    "src/nrs-admin-web/src/components/studies/series-datasets-tab.tsx",
+    "src/nrs-admin-web/src/components/studies/link-management-dialog.tsx",
+    "src/nrs-admin-web/src/components/studies/patient-merge-dialog.tsx",
+    "src/nrs-admin-web/src/components/studies/panel-layout.tsx"
   ],
   "files_modified": [
-    "src/NrsAdmin.Api/Repositories/BaseRepository.cs — IOptions to IOptionsMonitor",
-    "src/NrsAdmin.Api/Repositories/UserRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/FacilityRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/ModalityRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/ModalityTypeRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/AeMonitorRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/StudyRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/DashboardRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/SettingsRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/Hl7Repository.cs — constructor param",
-    "src/NrsAdmin.Api/Repositories/PacsRoutingRepository.cs — constructor param",
-    "src/NrsAdmin.Api/Services/MappingFileService.cs — IOptionsMonitor + CurrentValue",
-    "src/NrsAdmin.Api/Program.cs — config source + ConnectionSettingsService DI",
-    "src/NrsAdmin.Api/Properties/launchSettings.json — port 5001",
-    "src/NrsAdmin.Api/appsettings.json — Kestrel port 5001",
-    "src/nrs-admin-web/src/lib/types.ts — connection + browse types",
-    "src/nrs-admin-web/src/lib/api.ts — connectionApi (6 methods), port 5001",
-    "src/nrs-admin-web/src/lib/auth-context.tsx — connectionReady + recheckConnection",
-    "src/nrs-admin-web/src/app/(app)/layout.tsx — redirect to /setup if unconfigured",
-    "src/nrs-admin-web/src/app/login/page.tsx — connection warning banner",
-    "src/nrs-admin-web/src/app/(app)/settings/page.tsx — Connection tab + browse buttons",
-    "src/nrs-admin-web/src/components/nav-sidebar.tsx — green/red connection dot",
-    "src/nrs-admin-web/.env.local — port 5001"
+    "src/NrsAdmin.Api/Program.cs",
+    "src/NrsAdmin.Api/Controllers/V1/StudiesController.cs",
+    "src/NrsAdmin.Api/Repositories/StudyRepository.cs",
+    "src/NrsAdmin.Api/Repositories/DashboardRepository.cs",
+    "src/nrs-admin-web/src/lib/types.ts",
+    "src/nrs-admin-web/src/lib/api.ts",
+    "src/nrs-admin-web/src/app/(app)/studies/[id]/page.tsx",
+    "src/nrs-admin-web/src/components/nav-sidebar.tsx"
   ],
   "commits": [],
   "blockers": [],
   "next_steps": [
-    "Test full connection config flow (setup page → save → login → settings tab)",
-    "Test file browser dialog for mapping file/backup dir paths",
-    "Fix AD/LDAP auth error — user got 'AD/LDAP authentication is not supported' when logging in",
-    "Implement AD/LDAP authentication support (likely LDAP bind against Active Directory)",
-    "Consider: shared.users.password_format may have AD/LDAP indicator values beyond 0/1/2"
+    "Plan and implement route queue management (pacs.route_queue, route_errors, route_history)",
+    "Consider route_rules CRUD for automatic routing configuration",
+    "Commit all accumulated changes"
   ]
 }

@@ -1,7 +1,7 @@
 {
   "project": "NRS Admin",
-  "last_updated": "2026-02-17T19:00:00Z",
-  "current_phase": "connection_config",
+  "last_updated": "2026-04-07T04:00:00Z",
+  "current_phase": "route_queue_management",
   "features": [
     {
       "id": "phase1-api",
@@ -25,7 +25,7 @@
       "id": "phase2-frontend",
       "name": "Phase 2: Modality List + Mapping Editor + AE Monitor UI",
       "status": "done",
-      "details": "Modalities page (TanStack Table with sorting/filtering, create/edit/delete dialogs), Mapping Editor (Monaco raw editor + visual table view, backup restore), AE Monitor (auto-refresh 30s, time range selector, stats cards, filter). API client URLs aligned to backend. Build verified."
+      "details": "Modalities page (TanStack Table with sorting/filtering, create/edit/delete dialogs), Mapping Editor (Monaco raw editor + visual table with CRUD dialogs + How Mapping Works guide, backup restore), AE Monitor (auto-refresh 30s, time range selector, stats cards, filter). Build verified."
     },
     {
       "id": "phase3-study-api",
@@ -60,8 +60,8 @@
     {
       "id": "phase5-hl7",
       "name": "Phase 5: HL7 Configuration UI",
-      "status": "done",
-      "details": "Full CRUD for HL7 Locations, Destinations, Field Mapping, Forwarding. 4 controllers, 4 frontend pages. Build verified."
+      "status": "removed",
+      "details": "Removed from frontend: nav sidebar, 4 page files, types, API client. Backend controllers kept for potential future use."
     },
     {
       "id": "phase6-pacs-routing",
@@ -72,15 +72,45 @@
     {
       "id": "connection-config",
       "name": "Remote Connection & Mapping File Configuration",
-      "status": "implemented_needs_testing",
-      "details": "ConnectionSettings model, ConnectionJsonConfigurationSource (overrides appsettings.json), ConnectionSettingsService singleton (load/save/test connection/test path/browse filesystem). ConnectionController (6 endpoints: status, get, save, test, test-path, browse — anonymous when unconfigured, JWT when configured). All repositories switched to IOptionsMonitor for hot-reload. MappingFileService switched to IOptionsMonitor. Frontend: /setup page (DB connection + mapping file forms with browse buttons, test connection, save & redirect), auth-context connectionReady check, login page connection banner, Settings Connection tab, nav-sidebar green/red dot. FileBrowserDialog component for server-side file browsing. Port changed to 5001 (Docker conflict on 5000). Both builds verified 0 errors."
+      "status": "done",
+      "details": "ConnectionSettings model, ConnectionJsonConfigurationSource, ConnectionSettingsService, ConnectionController. Frontend: /setup page + /configuration page (separated from settings), file browser dialog, auth-context connectionReady check. All repos switched to IOptionsMonitor. Port 5001. Report Template directory settings added to connection.json overlay."
     },
     {
       "id": "ad-ldap-auth",
       "name": "AD/LDAP Authentication Support",
-      "status": "not_started",
-      "details": "User got 'AD/LDAP authentication is not supported in NRS Admin' error when logging in. Need to investigate shared.users.password_format values for AD/LDAP users and implement LDAP bind authentication.",
-      "blockers": ["Need to investigate password_format values beyond 0/1/2", "Need to determine LDAP server config location in Novarad DB"]
+      "status": "done",
+      "details": "Implemented LDAP bind authentication. User model has UseAdAuthentication + IsLdapUser boolean flags. AuthService checks these flags and routes to LdapAuthenticationService or local password verification."
+    },
+    {
+      "id": "billing-codes",
+      "name": "Phase 7: CPT & ICD Code Management",
+      "status": "done",
+      "details": "BillingServiceCode + IcdCode domain models. BillingCodeRepository, IcdCodeRepository. CptCodesController (9 endpoints), IcdCodesController (8 endpoints). Frontend: CPT page with table, CRUD, CSV import/export. ICD page with table, CRUD, version/category filters, obsolete/restore. Build verified."
+    },
+    {
+      "id": "report-template-editor",
+      "name": "Report Template Editor with Live Preview + Visual Builder",
+      "status": "in_progress",
+      "details": "Backend DONE: ReportTemplateService, ReportTemplateRepository, ReportTemplatesController. Frontend Code view WORKS: Monaco editor with live preview, placeholder panel, backup/restore. Visual view (GrapesJS) PARTIALLY FIXED: content preservation on tab switch works (extractBody/wrapBody + init guard), CSS now loads via public/css/grapes.min.css, refresh crash fixed. BUT canvas still blank — 'about:srcdoc' iframe sandbox error blocking script execution in GrapesJS canvas iframe.",
+      "blockers": ["GrapesJS canvas iframe sandbox error: 'Blocked script execution in about:srcdoc' — scripts not allowed in sandboxed frame"]
+    },
+    {
+      "id": "unified-settings-redesign",
+      "name": "Unified Novarad Settings Page",
+      "status": "done",
+      "details": "COMPLETE: Backend 12 endpoints for 7 settings tables. Frontend two-column layout with source-based categories (Shared, Site, PACS, PACS Options, RIS, RIS Options, Object Store), sidebar, search, inline edit, skeletons. NRS Admin config separated to /configuration route. Nav has Novarad section ('Novarad Settings') and System section ('Configuration'). Novarad settings confirmed loading from DB."
+    },
+    {
+      "id": "unified-study-editor",
+      "name": "Unified PACS/RIS Study Editor",
+      "status": "done",
+      "details": "COMPLETE: Panel View (default) with animated pill nav + Tab View toggle. PACS↔RIS field sync with staged commit/discard. Patient demographics comparison, RIS patient details editing, order/procedure editing, report editing/creation, series modality/description editing. Link/unlink studies to RIS orders. Patient merge via ris.patients_merge(). 13 new components, 10+ new API endpoints. Test data created for 4 scenarios (Dawn Kelly, Cecil Meeks, Nicholas Overton, Cheryl Meeks)."
+    },
+    {
+      "id": "route-queue-management",
+      "name": "PACS Route Queue Management",
+      "status": "planning",
+      "details": "PLANNING: Admin UI to view/manage pacs.route_queue (pending), route_errors (failed), route_history (completed), queue_router_history (stats). DB has stored functions for queue insert/delete/update/retry. Also route_rules for automatic routing configuration."
     }
   ]
 }

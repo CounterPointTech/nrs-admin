@@ -55,6 +55,14 @@ public class ConnectionJsonConfigurationProvider : ConfigurationProvider
                 if (!string.IsNullOrEmpty(mf.BackupDirectory))
                     Data["MappingFile:BackupDirectory"] = mf.BackupDirectory;
             }
+
+            if (settings.ReportTemplate is { } rt)
+            {
+                if (!string.IsNullOrEmpty(rt.Directory))
+                    Data["ReportTemplate:Directory"] = rt.Directory;
+                if (!string.IsNullOrEmpty(rt.BackupDirectory))
+                    Data["ReportTemplate:BackupDirectory"] = rt.BackupDirectory;
+            }
         }
         catch (Exception ex)
         {

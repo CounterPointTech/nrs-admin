@@ -80,3 +80,80 @@ This file tracks important architectural and design decisions.
 **Decision:** Two LEFT JOINs: `ris.physicians` → `ris.people` for both referring physician and radiologist. Uses CONCAT_WS for null-safe name formatting.
 **Rationale:** Matches Novarad's data model where physicians are a specialized view of people. Only used in detail view (GetByIdAsync) to avoid extra JOINs in search results.
 **Files Affected:** `StudyRepository.cs`
+
+### Decision: CPT code import uses two-step preview → execute flow
+
+**Context:** Bulk importing CPT codes from CSV could introduce bad data (duplicates, invalid fields).
+**Decision:** Two-step import: POST `/import/preview` parses CSV, validates rows, checks for duplicates against DB, returns preview. POST `/import/execute` accepts validated rows with `overwriteExisting` flag. Uses PostgreSQL `ON CONFLICT` for upserts.
+**Rationale:** Prevents accidental data corruption. User sees validation errors and duplicate counts before committing. Round-trip compatible with export format.
+**Files Affected:** `BillingCodeRepository.cs`, `CptCodesController.cs`, `CptImportResponses.cs`, `billing/cpt-codes/page.tsx`
+
+### Decision: ICD delete with obsolete fallback
+
+**Context:** ICD codes referenced by billing orders (via FK `billing_orders_icd_codes.icd_code_id`) cannot be deleted.
+**Decision:** Delete endpoint returns 409 Conflict with message suggesting "mark as obsolete instead". Frontend toast includes a one-click "Mark Obsolete" action button. Obsolete codes get `obsolete_date = NOW()`, restore clears it to NULL.
+**Rationale:** Medical coding standards require keeping historical ICD codes for audit trails. Obsolete is the standard workflow — soft-delete via date stamp rather than hard delete.
+**Files Affected:** `IcdCodeRepository.cs`, `IcdCodesController.cs`, `billing/icd-codes/page.tsx`
+
+### Decision: Report template directory configurable via connection.json
+
+**Context:** Report template settings had a config section in appsettings.json but weren't wired into the connection.json overlay system, so there was no UI to configure the template directory path.
+**Decision:** Added ReportTemplateConnectionSettings to ConnectionSettings model, wired into ConnectionJsonConfigurationProvider, controller GET/PUT, and frontend Settings > Connection tab with browse buttons.
+**Rationale:** Follows exact same pattern as MappingFile settings. IOptionsMonitor picks up changes immediately without restart.
+**Files Affected:** `ConnectionSettings.cs`, `ConnectionJsonConfigurationSource.cs`, `ConnectionResponses.cs`, `ConnectionRequests.cs`, `ConnectionController.cs`, `types.ts`, `settings/page.tsx`
+
+### Decision: Visual tab CRUD for mapping editor
+
+**Context:** The Visual tab was read-only — users had to manually type key=value format in the Raw Editor to add/edit mappings, which was error-prone.
+**Decision:** Added add/edit/delete dialogs to the Visual tab using `mappingApi.saveEntries()`. Includes a collapsible "How Mapping Works" guide with visual flow diagram and field reference.
+**Rationale:** `saveEntries()` endpoint already existed but was unused. Backend handles validation, serialization, and backup. Comment lines are preserved through the entries array.
+**Files Affected:** `modalities/mapping/page.tsx`
+
+### Decision: Remove HL7 section from app
+
+**Context:** User says the HL7 configuration UI (Phase 5) is not helpful for their use case.
+**Decision:** Remove HL7 from navigation sidebar and app in next session. Backend APIs can remain for potential future use.
+**Rationale:** User preference — they want to focus on more useful features like unified settings management.
+**Files Affected:** (planned for next session) `nav-sidebar.tsx`, potentially HL7 page files
+
+### Decision: Fix connection.json password preservation on save
+
+**Context:** When saving connection settings from the frontend, the password field is cleared after save for security (`setDbPassword('')`). On subsequent saves, the empty password overwrites the existing password in connection.json. After API restart, the connection fails because the stored password is empty.
+**Decision:** Added guard in `ConnectionController.SaveSettings`: if `db.Password` is empty/null and an existing password exists, preserve the existing password.
+**Rationale:** Prevents silent data loss of credentials. The frontend intentionally clears the password field after save — the backend must handle this by treating empty password as "no change" rather than "set to empty."
+**Files Affected:** `ConnectionController.cs` (SaveSettings method)
+
+### Decision: Separate NRS Admin settings from Novarad DB settings
+
+**Context:** The unified settings page mixed NRS Admin app configuration (connection.json — DB host, mapping file, template dirs) with Novarad database settings (shared.settings, site.settings, pacs.settings, etc.). User explicitly wants these in separate sections — they are conceptually different things.
+**Decision:** (PENDING — to be implemented next session) NRS Admin connection/app settings should be in their own distinct section, separate from the Novarad database settings manager. The Novarad settings categories (DICOM, Archive, Security, etc.) should only contain settings from the 7 database tables.
+**Rationale:** NRS Admin config is about configuring THIS app; Novarad settings are about configuring the radiology system. Mixing them is confusing.
+**Files Affected:** (next session) `settings/page.tsx`, possibly new route or tabs
+
+### Decision: Separate NRS Admin config from Novarad settings — distinct nav sections
+
+**Context:** The unified settings page mixed NRS Admin app configuration (connection.json) with Novarad database settings. User explicitly wanted them separated.
+**Decision:** Created `/configuration` route for NRS Admin config (connection.json — DB, mapping file, template dirs) with its own "Configuration" nav item under System. Settings page shows only Novarad DB settings. Added "Novarad" nav section with "Novarad Settings" link.
+**Rationale:** NRS Admin config is about configuring THIS app; Novarad settings configure the radiology system. Clear separation avoids confusion.
+**Files Affected:** `configuration/page.tsx` (new), `nav-sidebar.tsx`, `settings/page.tsx`, `connection-settings-card.tsx`
+
+### Decision: Source-based settings categories instead of semantic categorization
+
+**Context:** The original settings categories used regex/static-map guessing to assign settings to semantic categories (DICOM, Security, HL7, etc.). User preferred organizing by actual database source tables.
+**Decision:** Replaced 10 semantic categories + 160 lines of categorization logic with 7 source-based categories: Shared, Site, PACS, PACS Options, RIS, RIS Options, Object Store. `categorizeAll()` now simply groups by `setting.source`.
+**Rationale:** Direct mapping to Novarad DB tables is more intuitive for admins who know the system. No guessing, no maintenance of regex rules.
+**Files Affected:** `settings-categories.ts` (complete rewrite), `settings-category-sidebar.tsx`
+
+### Decision: GrapesJS CSS loaded via public/ instead of bundler
+
+**Context:** Dynamic `import('grapesjs/dist/css/grapes.min.css')` and `@import` in globals.css both failed to load GrapesJS CSS properly through Next.js Turbopack/Tailwind pipeline.
+**Decision:** Copied `grapes.min.css` to `public/css/` and inject a `<link>` tag dynamically when the GrapesJS component loads.
+**Rationale:** Bypasses all bundler/PostCSS/Tailwind processing. The CSS loads as a static file, guaranteed to work.
+**Files Affected:** `public/css/grapes.min.css` (new), `grapesjs-editor.tsx`, `globals.css`
+
+### Decision: Report templates are filesystem-based, not DB-stored
+
+**Context:** Novarad report templates are .htm files on disk. `ris.facility_details.report_template_name` stores just the filename per facility.
+**Decision:** Template editor will read/write .htm files via API (similar to MappingFileService pattern). Templates use HTML comment placeholders like `<!--PatientName-->`, `<!--ReportText-->`, etc.
+**Rationale:** Matches Novarad's existing architecture. No DDL needed. Templates can be backed up and versioned like mapping files.
+**Files Affected:** (planned for next session)

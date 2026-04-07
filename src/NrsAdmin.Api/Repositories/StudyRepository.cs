@@ -213,6 +213,42 @@ public class StudyRepository : BaseRepository
         return datasets.ToList();
     }
 
+    public async Task<List<Series>> GetSeriesForSeriesIdAsync(long seriesId)
+    {
+        const string sql = """
+            SELECT s.id AS Id, s.series_uid AS SeriesUid, s.series_id AS SeriesId,
+                   s.modality AS Modality, s.description AS Description,
+                   s.num_images AS NumImages, s.manufacturer AS Manufacturer,
+                   s.is_key_images AS IsKeyImages, s.modified_date AS ModifiedDate
+            FROM pacs.series s
+            WHERE s.study = (SELECT study FROM pacs.series WHERE id = @SeriesId)
+            ORDER BY s.id ASC
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var series = await connection.QueryAsync<Series>(sql, new { SeriesId = seriesId });
+        return series.ToList();
+    }
+
+    public async Task<bool> UpdateSeriesAsync(long seriesId, UpdateSeriesRequest request)
+    {
+        var setClauses = new List<string>();
+        var parameters = new DynamicParameters();
+        parameters.Add("SeriesId", seriesId);
+
+        if (request.Modality is not null) { setClauses.Add("modality = @Modality"); parameters.Add("Modality", request.Modality); }
+        if (request.Description is not null) { setClauses.Add("description = @Description"); parameters.Add("Description", request.Description); }
+
+        if (setClauses.Count == 0) return false;
+
+        setClauses.Add("modified_date = NOW()");
+
+        var sql = $"UPDATE pacs.series SET {string.Join(", ", setClauses)} WHERE id = @SeriesId";
+
+        await using var connection = await CreateConnectionAsync();
+        return await connection.ExecuteAsync(sql, parameters) > 0;
+    }
+
     public async Task<bool> UpdateAsync(long id, UpdateStudyRequest request)
     {
         var setClauses = new List<string>();

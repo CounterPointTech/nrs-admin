@@ -18,6 +18,22 @@ public class SettingsController : ControllerBase
         _settingsRepository = settingsRepository;
     }
 
+    // ============== Unified ==============
+
+    [HttpGet("all")]
+    public async Task<ActionResult<ApiResponse<List<UnifiedSettingResponse>>>> GetAllSettings()
+    {
+        var settings = await _settingsRepository.GetAllUnifiedSettingsAsync();
+        return Ok(ApiResponse<List<UnifiedSettingResponse>>.Ok(settings));
+    }
+
+    [HttpGet("overview")]
+    public async Task<ActionResult<ApiResponse<SettingsOverviewResponse>>> GetOverview()
+    {
+        var overview = await _settingsRepository.GetOverviewAsync();
+        return Ok(ApiResponse<SettingsOverviewResponse>.Ok(overview));
+    }
+
     // ============== Shared Settings ==============
 
     [HttpGet("shared")]
@@ -76,6 +92,111 @@ public class SettingsController : ControllerBase
 
         var setting = await _settingsRepository.GetSiteSettingByNameAsync(name);
         return Ok(ApiResponse<SiteSetting>.Ok(setting!));
+    }
+
+    // ============== PACS Settings ==============
+
+    [HttpGet("pacs/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> GetPacsSetting(string name)
+    {
+        var setting = await _settingsRepository.GetPacsSettingByNameAsync(name);
+        if (setting == null)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"PACS setting '{name}' not found"));
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting));
+    }
+
+    [HttpPut("pacs/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> UpdatePacsSetting(string name, [FromBody] UpdateSettingRequest request)
+    {
+        var updated = await _settingsRepository.UpdatePacsSettingAsync(name, request.Value);
+        if (!updated)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"PACS setting '{name}' not found"));
+        var setting = await _settingsRepository.GetPacsSettingByNameAsync(name);
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting!));
+    }
+
+    // ============== RIS Settings ==============
+
+    [HttpGet("ris/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> GetRisSetting(string name)
+    {
+        var setting = await _settingsRepository.GetRisSettingByNameAsync(name);
+        if (setting == null)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"RIS setting '{name}' not found"));
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting));
+    }
+
+    [HttpPut("ris/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> UpdateRisSetting(string name, [FromBody] UpdateSettingRequest request)
+    {
+        var updated = await _settingsRepository.UpdateRisSettingAsync(name, request.Value);
+        if (!updated)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"RIS setting '{name}' not found"));
+        var setting = await _settingsRepository.GetRisSettingByNameAsync(name);
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting!));
+    }
+
+    // ============== Object Store Settings ==============
+
+    [HttpGet("object-store/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> GetObjectStoreSetting(string name)
+    {
+        var setting = await _settingsRepository.GetObjectStoreSettingByNameAsync(name);
+        if (setting == null)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"Object Store setting '{name}' not found"));
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting));
+    }
+
+    [HttpPut("object-store/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> UpdateObjectStoreSetting(string name, [FromBody] UpdateSettingRequest request)
+    {
+        var updated = await _settingsRepository.UpdateObjectStoreSettingAsync(name, request.Value);
+        if (!updated)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"Object Store setting '{name}' not found"));
+        var setting = await _settingsRepository.GetObjectStoreSettingByNameAsync(name);
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting!));
+    }
+
+    // ============== PACS Options ==============
+
+    [HttpGet("pacs-options/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> GetPacsOption(string name)
+    {
+        var setting = await _settingsRepository.GetPacsOptionByNameAsync(name);
+        if (setting == null)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"PACS option '{name}' not found"));
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting));
+    }
+
+    [HttpPut("pacs-options/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> UpdatePacsOption(string name, [FromBody] UpdateSettingRequest request)
+    {
+        var updated = await _settingsRepository.UpdatePacsOptionAsync(name, request.Value);
+        if (!updated)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"PACS option '{name}' not found"));
+        var setting = await _settingsRepository.GetPacsOptionByNameAsync(name);
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting!));
+    }
+
+    // ============== RIS Options ==============
+
+    [HttpGet("ris-options/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> GetRisOption(string name)
+    {
+        var setting = await _settingsRepository.GetRisOptionByNameAsync(name);
+        if (setting == null)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"RIS option '{name}' not found"));
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting));
+    }
+
+    [HttpPut("ris-options/{name}")]
+    public async Task<ActionResult<ApiResponse<SimpleSetting>>> UpdateRisOption(string name, [FromBody] UpdateSettingRequest request)
+    {
+        var updated = await _settingsRepository.UpdateRisOptionAsync(name, request.Value);
+        if (!updated)
+            return NotFound(ApiResponse<SimpleSetting>.Fail($"RIS option '{name}' not found"));
+        var setting = await _settingsRepository.GetRisOptionByNameAsync(name);
+        return Ok(ApiResponse<SimpleSetting>.Ok(setting!));
     }
 }
 

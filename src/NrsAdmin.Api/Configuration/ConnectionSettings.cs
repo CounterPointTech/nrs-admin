@@ -4,6 +4,7 @@ public class ConnectionSettings
 {
     public DatabaseConnectionSettings Database { get; set; } = new();
     public MappingFileConnectionSettings MappingFile { get; set; } = new();
+    public ReportTemplateConnectionSettings ReportTemplate { get; set; } = new();
 }
 
 public class DatabaseConnectionSettings
@@ -25,4 +26,10 @@ public class MappingFileConnectionSettings
 {
     public string Path { get; set; } = @"D:\NovaRad\NovaRIS\Server\modality_mapping.txt";
     public string BackupDirectory { get; set; } = @"D:\NovaRad\NovaRIS\Server\mapping_backups";
+}
+
+public class ReportTemplateConnectionSettings
+{
+    public string Directory { get; set; } = @"D:\NovaRad\NovaRIS\Server\ReportTemplates";
+    public string BackupDirectory { get; set; } = @"D:\NovaRad\NovaRIS\Server\ReportTemplates\backups";
 }

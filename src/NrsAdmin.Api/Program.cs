@@ -41,6 +41,7 @@ try
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
     builder.Services.Configure<MappingFileSettings>(builder.Configuration.GetSection("MappingFile"));
     builder.Services.Configure<LdapSettings>(builder.Configuration.GetSection("Ldap"));
+    builder.Services.Configure<ReportTemplateSettings>(builder.Configuration.GetSection("ReportTemplate"));
 
     // Authentication
     var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
@@ -144,10 +145,15 @@ try
     builder.Services.AddScoped<SettingsRepository>();
     builder.Services.AddScoped<Hl7Repository>();
     builder.Services.AddScoped<PacsRoutingRepository>();
+    builder.Services.AddScoped<BillingCodeRepository>();
+    builder.Services.AddScoped<IcdCodeRepository>();
+    builder.Services.AddScoped<ReportTemplateRepository>();
+    builder.Services.AddScoped<RisRepository>();
 
     // DI Registration — Services
     builder.Services.AddScoped<AuthService>();
     builder.Services.AddScoped<MappingFileService>();
+    builder.Services.AddScoped<ReportTemplateService>();
 
     var app = builder.Build();
 

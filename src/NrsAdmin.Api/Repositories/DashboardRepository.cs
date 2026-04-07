@@ -25,28 +25,28 @@ public class DashboardRepository : BaseRepository
     {
         await using var connection = await CreateConnectionAsync();
 
-        // Run all aggregate queries concurrently
-        var totalStudiesTask = connection.ExecuteScalarAsync<int>(
+        // Run queries sequentially — Npgsql does not support concurrent commands on one connection
+        var totalStudies = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM pacs.studies");
 
-        var todayStudiesTask = connection.ExecuteScalarAsync<int>(
+        var todayStudies = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM pacs.studies WHERE study_date >= CURRENT_DATE");
 
-        var activeSessionsTask = connection.ExecuteScalarAsync<int>(
+        var activeSessions = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM shared.active_sessions WHERE expiration > NOW() AT TIME ZONE 'UTC'");
 
-        var totalPatientsTask = connection.ExecuteScalarAsync<int>(
+        var totalPatients = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM pacs.patients");
 
-        var byStatusTask = connection.QueryAsync<StudyCountByStatus>(
+        var byStatus = (await connection.QueryAsync<StudyCountByStatus>(
             """
             SELECT status AS Status, COUNT(*) AS Count
             FROM pacs.studies
             GROUP BY status
             ORDER BY Count DESC
-            """);
+            """)).ToList();
 
-        var byModalityTask = connection.QueryAsync<StudyCountByModality>(
+        var byModality = (await connection.QueryAsync<StudyCountByModality>(
             """
             SELECT modality AS Modality, COUNT(*) AS Count
             FROM pacs.studies
@@ -54,18 +54,18 @@ public class DashboardRepository : BaseRepository
             GROUP BY modality
             ORDER BY Count DESC
             LIMIT 15
-            """);
+            """)).ToList();
 
-        var byDateTask = connection.QueryAsync<StudyCountByDate>(
+        var byDate = (await connection.QueryAsync<StudyCountByDate>(
             """
             SELECT TO_CHAR(study_date, 'YYYY-MM-DD') AS Date, COUNT(*) AS Count
             FROM pacs.studies
             WHERE study_date >= CURRENT_DATE - INTERVAL '30 days'
             GROUP BY TO_CHAR(study_date, 'YYYY-MM-DD')
             ORDER BY Date ASC
-            """);
+            """)).ToList();
 
-        var recentTask = connection.QueryAsync<RecentStudy>(
+        var recentStudies = (await connection.QueryAsync<RecentStudy>(
             """
             SELECT s.id AS Id,
                    CONCAT_WS(', ', p.last_name, p.first_name) AS PatientName,
@@ -80,12 +80,8 @@ public class DashboardRepository : BaseRepository
             LEFT JOIN shared.facilities f ON s.facility_id = f.facility_id
             ORDER BY s.modified_date DESC
             LIMIT 10
-            """);
+            """)).ToList();
 
-        await Task.WhenAll(totalStudiesTask, todayStudiesTask, activeSessionsTask,
-            totalPatientsTask, byStatusTask, byModalityTask, byDateTask, recentTask);
-
-        var byStatus = byStatusTask.Result.ToList();
         // Enrich status labels
         foreach (var item in byStatus)
         {
@@ -94,14 +90,14 @@ public class DashboardRepository : BaseRepository
 
         return new DashboardStats
         {
-            TotalStudies = totalStudiesTask.Result,
-            TodayStudies = todayStudiesTask.Result,
-            ActiveSessions = activeSessionsTask.Result,
-            TotalPatients = totalPatientsTask.Result,
+            TotalStudies = totalStudies,
+            TodayStudies = todayStudies,
+            ActiveSessions = activeSessions,
+            TotalPatients = totalPatients,
             StudiesByStatus = byStatus,
-            StudiesByModality = byModalityTask.Result.ToList(),
-            StudiesByDate = byDateTask.Result.ToList(),
-            RecentStudies = recentTask.Result.ToList()
+            StudiesByModality = byModality,
+            StudiesByDate = byDate,
+            RecentStudies = recentStudies
         };
     }
 }

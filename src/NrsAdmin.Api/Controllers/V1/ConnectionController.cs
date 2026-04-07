@@ -88,6 +88,15 @@ public class ConnectionController : ControllerBase
             };
         }
 
+        if (settings?.ReportTemplate is { } rt)
+        {
+            response.ReportTemplate = new ReportTemplateSettingsResponse
+            {
+                Directory = rt.Directory,
+                BackupDirectory = rt.BackupDirectory
+            };
+        }
+
         return Ok(new { success = true, data = response });
     }
 
@@ -106,12 +115,24 @@ public class ConnectionController : ControllerBase
 
         if (request.Database is { } db)
         {
+            // Preserve existing password when the request sends empty/null
+            // (frontend clears the password field after save for security)
+            if (string.IsNullOrEmpty(db.Password) && existing.Database is not null)
+            {
+                db.Password = existing.Database.Password;
+            }
+
             existing.Database = db;
         }
 
         if (request.MappingFile is { } mf)
         {
             existing.MappingFile = mf;
+        }
+
+        if (request.ReportTemplate is { } rt)
+        {
+            existing.ReportTemplate = rt;
         }
 
         _connectionService.SaveSettings(existing);

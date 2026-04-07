@@ -17,14 +17,15 @@ import {
   Moon,
   Sun,
   Shield,
-  Network,
-  MapPin,
-  Send,
-  GitBranch,
-  Forward,
   Radio,
   Waypoints,
   HardDrive,
+  DollarSign,
+  Stethoscope,
+  Receipt,
+  FileText,
+  ClipboardList,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,16 +45,18 @@ const dashboardNavItems = [
 ];
 
 const pacsNavItems = [
-  { title: 'Studies', href: '/studies', icon: FileSearch },
+  { title: 'Study Editor', href: '/studies', icon: FileSearch },
   { title: 'Destinations', href: '/pacs/destinations', icon: Radio },
   { title: 'Routing Zones', href: '/pacs/routing-zones', icon: Waypoints },
 ];
 
-const hl7NavItems = [
-  { title: 'Locations', href: '/hl7/locations', icon: MapPin },
-  { title: 'Destinations', href: '/hl7/destinations', icon: Send },
-  { title: 'Field Mapping', href: '/hl7/field-mapping', icon: GitBranch },
-  { title: 'Forwarding', href: '/hl7/forwarding', icon: Forward },
+const reportsNavItems = [
+  { title: 'Templates', href: '/reports/templates', icon: FileText },
+];
+
+const billingNavItems = [
+  { title: 'CPT Codes', href: '/billing/cpt-codes', icon: DollarSign },
+  { title: 'ICD Codes', href: '/billing/icd-codes', icon: Stethoscope },
 ];
 
 const risModalityItems = [
@@ -62,8 +65,12 @@ const risModalityItems = [
   { title: 'AE Monitoring', href: '/modalities/monitoring', icon: Activity },
 ];
 
+const novaradNavItems = [
+  { title: 'Novarad Settings', href: '/settings', icon: Settings },
+];
+
 const systemNavItems = [
-  { title: 'Settings', href: '/settings', icon: Settings },
+  { title: 'Configuration', href: '/configuration', icon: Wrench },
 ];
 
 interface NavSidebarProps {
@@ -76,7 +83,8 @@ export function NavSidebar({ className }: NavSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [pacsExpanded, setPacsExpanded] = useState(true);
   const [modalitiesExpanded, setModalitiesExpanded] = useState(true);
-  const [hl7Expanded, setHl7Expanded] = useState(true);
+const [billingExpanded, setBillingExpanded] = useState(true);
+  const [reportsExpanded, setReportsExpanded] = useState(true);
   const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
@@ -262,54 +270,6 @@ export function NavSidebar({ className }: NavSidebarProps) {
 
           <Separator className="my-4 bg-border/50" />
 
-          {/* HL7 */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              HL7
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {collapsed ? (
-              hl7NavItems.map((item, index) => (
-                <div
-                  key={item.href}
-                  className={cn('animate-fade-in', `stagger-${index + 2}`)}
-                  style={{ opacity: 0 }}
-                >
-                  <NavItem {...item} />
-                </div>
-              ))
-            ) : (
-              <div className="animate-fade-in stagger-2" style={{ opacity: 0 }}>
-                <button
-                  onClick={() => setHl7Expanded(!hl7Expanded)}
-                  className={cn(
-                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                    'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  <Network className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="flex-1 text-left">HL7 Config</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 transition-transform duration-200',
-                      hl7Expanded && 'rotate-180'
-                    )}
-                  />
-                </button>
-                {hl7Expanded && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
-                    {hl7NavItems.map((item) => (
-                      <NavItem key={item.href} {...item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
           {/* RIS */}
           {!collapsed && (
             <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
@@ -358,6 +318,122 @@ export function NavSidebar({ className }: NavSidebarProps) {
 
           <Separator className="my-4 bg-border/50" />
 
+          {/* Reports */}
+          {!collapsed && (
+            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
+              Reports
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            {collapsed ? (
+              reportsNavItems.map((item, index) => (
+                <div
+                  key={item.href}
+                  className={cn('animate-fade-in', `stagger-${index + 4}`)}
+                  style={{ opacity: 0 }}
+                >
+                  <NavItem {...item} />
+                </div>
+              ))
+            ) : (
+              <div className="animate-fade-in stagger-4" style={{ opacity: 0 }}>
+                <button
+                  onClick={() => setReportsExpanded(!reportsExpanded)}
+                  className={cn(
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <ClipboardList className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="flex-1 text-left">Reports</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform duration-200',
+                      reportsExpanded && 'rotate-180'
+                    )}
+                  />
+                </button>
+                {reportsExpanded && (
+                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
+                    {reportsNavItems.map((item) => (
+                      <NavItem key={item.href} {...item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Separator className="my-4 bg-border/50" />
+
+          {/* Billing */}
+          {!collapsed && (
+            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
+              Billing
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            {collapsed ? (
+              billingNavItems.map((item, index) => (
+                <div
+                  key={item.href}
+                  className={cn('animate-fade-in', `stagger-${index + 4}`)}
+                  style={{ opacity: 0 }}
+                >
+                  <NavItem {...item} />
+                </div>
+              ))
+            ) : (
+              <div className="animate-fade-in stagger-4" style={{ opacity: 0 }}>
+                <button
+                  onClick={() => setBillingExpanded(!billingExpanded)}
+                  className={cn(
+                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <Receipt className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  <span className="flex-1 text-left">Billing</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform duration-200',
+                      billingExpanded && 'rotate-180'
+                    )}
+                  />
+                </button>
+                {billingExpanded && (
+                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
+                    {billingNavItems.map((item) => (
+                      <NavItem key={item.href} {...item} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Separator className="my-4 bg-border/50" />
+
+          {/* Novarad */}
+          {!collapsed && (
+            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
+              Novarad
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            {novaradNavItems.map((item, index) => (
+              <div
+                key={item.href}
+                className={cn('animate-fade-in', `stagger-${index + 5}`)}
+                style={{ opacity: 0 }}
+              >
+                <NavItem {...item} />
+              </div>
+            ))}
+          </div>
+
+          <Separator className="my-4 bg-border/50" />
+
           {/* System */}
           {!collapsed && (
             <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
@@ -368,7 +444,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
             {systemNavItems.map((item, index) => (
               <div
                 key={item.href}
-                className={cn('animate-fade-in', `stagger-${index + 5}`)}
+                className={cn('animate-fade-in', `stagger-${index + 6}`)}
                 style={{ opacity: 0 }}
               >
                 <NavItem {...item} />
