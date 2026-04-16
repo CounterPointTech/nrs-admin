@@ -110,3 +110,31 @@ public class SyncFieldRequest
     public string? Value { get; set; }
     public SyncTarget Target { get; set; }
 }
+
+public class MergeOrdersRequest
+{
+    public long TargetOrderId { get; set; }
+    public long SourceOrderId { get; set; }
+    public Dictionary<string, string?> FieldOverrides { get; set; } = new();
+}
+
+public class MergeProceduresRequest
+{
+    public long TargetProcedureId { get; set; }
+    public long SourceProcedureId { get; set; }
+    public bool MoveReports { get; set; } = true;
+    public Dictionary<string, string?> FieldOverrides { get; set; } = new();
+}
+
+public class CreateStandardReportRequest
+{
+    public string ShortReportName { get; set; } = string.Empty;
+    public string ReportText { get; set; } = string.Empty;
+    public string? CreatedBy { get; set; }
+}
+
+public class UpdateStandardReportRequest
+{
+    public string ShortReportName { get; set; } = string.Empty;
+    public string ReportText { get; set; } = string.Empty;
+}

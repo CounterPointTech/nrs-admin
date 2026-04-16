@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ColumnDef,
   flexRender,
@@ -10,71 +10,40 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { routingZoneApi } from '@/lib/api';
-import { RoutingZone, CreateRoutingZoneRequest } from '@/lib/types';
+import type { RoutingZone, CreateRoutingZoneRequest } from '@/lib/types';
 import {
-  Waypoints,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  ArrowUpDown,
-  Loader2,
-  AlertCircle,
+  Plus, Search, Pencil, Trash2, ArrowUpDown, Loader2, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRoutingContext } from './routing-context';
 
-export default function RoutingZonesPage() {
-  const [zones, setZones] = useState<RoutingZone[]>([]);
-  const [loading, setLoading] = useState(true);
+export function ZonesSection() {
+  const { zones, initialLoading, reloadZones, reloadDestinations } = useRoutingContext();
   const [search, setSearch] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // Dialog state
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingZone, setEditingZone] = useState<RoutingZone | null>(null);
   const [deletingZone, setDeletingZone] = useState<RoutingZone | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState<CreateRoutingZoneRequest>({
     zoneName: '',
     isDefault: false,
   });
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const res = await routingZoneApi.getAll();
-    if (res.success && res.data) setZones(res.data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const columns = useMemo<ColumnDef<RoutingZone>[]>(() => [
     {
@@ -109,11 +78,11 @@ export default function RoutingZonesPage() {
       header: '',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8"
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
             onClick={() => openEditor(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete"
             onClick={() => { setDeletingZone(row.original); setDeleteOpen(true); }}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -136,16 +105,10 @@ export default function RoutingZonesPage() {
   function openEditor(zone?: RoutingZone) {
     if (zone) {
       setEditingZone(zone);
-      setFormData({
-        zoneName: zone.zoneName,
-        isDefault: zone.isDefault,
-      });
+      setFormData({ zoneName: zone.zoneName, isDefault: zone.isDefault });
     } else {
       setEditingZone(null);
-      setFormData({
-        zoneName: '',
-        isDefault: false,
-      });
+      setFormData({ zoneName: '', isDefault: false });
     }
     setEditorOpen(true);
   }
@@ -158,7 +121,7 @@ export default function RoutingZonesPage() {
         if (res.success) {
           toast.success('Routing zone updated');
           setEditorOpen(false);
-          await loadData();
+          await Promise.all([reloadZones(), reloadDestinations()]);
         } else {
           toast.error(res.message || 'Failed to update routing zone');
         }
@@ -167,7 +130,7 @@ export default function RoutingZonesPage() {
         if (res.success) {
           toast.success('Routing zone created');
           setEditorOpen(false);
-          await loadData();
+          await reloadZones();
         } else {
           toast.error(res.message || 'Failed to create routing zone');
         }
@@ -186,7 +149,7 @@ export default function RoutingZonesPage() {
         toast.success('Routing zone deleted');
         setDeleteOpen(false);
         setDeletingZone(null);
-        await loadData();
+        await Promise.all([reloadZones(), reloadDestinations()]);
       } else {
         toast.error(res.message || 'Failed to delete routing zone');
       }
@@ -196,44 +159,34 @@ export default function RoutingZonesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Routing Zones"
-        description="Manage PACS destination routing zones"
-        icon={Waypoints}
-        actions={
-          <Button onClick={() => openEditor()} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Zone
-          </Button>
-        }
-      />
-
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search zones..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+    <div className="space-y-3">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Search zones..." value={search}
+              onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-xs w-48" />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {table.getFilteredRowModel().rows.length} zones
+          </span>
         </div>
-        <span className="text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} zones
-        </span>
+        <Button size="sm" onClick={() => openEditor()} className="gap-1.5 h-8 text-xs">
+          <Plus className="h-3.5 w-3.5" /> Add Zone
+        </Button>
       </div>
 
       {/* Table */}
       <div className="rounded-lg border bg-card">
-        {loading ? (
+        {initialLoading ? (
           <div className="flex items-center justify-center h-48">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : zones.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <AlertCircle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-muted-foreground">No routing zones configured</p>
+            <p className="text-sm text-muted-foreground">No routing zones configured</p>
             <Button variant="outline" size="sm" onClick={() => openEditor()}>
               <Plus className="h-4 w-4 mr-1" /> Add your first zone
             </Button>
@@ -241,9 +194,9 @@ export default function RoutingZonesPage() {
         ) : (
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
                     <TableHead key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
@@ -285,18 +238,15 @@ export default function RoutingZonesPage() {
 
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="zoneName">Zone Name *</Label>
-              <Input id="zoneName" value={formData.zoneName}
+              <Label htmlFor="zone-name">Zone Name *</Label>
+              <Input id="zone-name" value={formData.zoneName}
                 onChange={(e) => setFormData({ ...formData, zoneName: e.target.value })} />
             </div>
-
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox checked={formData.isDefault}
-                  onCheckedChange={(c) => setFormData({ ...formData, isDefault: !!c })} />
-                <span className="text-sm">Set as default zone</span>
-              </label>
-            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={formData.isDefault}
+                onCheckedChange={(c) => setFormData({ ...formData, isDefault: !!c })} />
+              <span className="text-sm">Set as default zone</span>
+            </label>
           </div>
 
           <DialogFooter>
@@ -309,14 +259,13 @@ export default function RoutingZonesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Routing Zone</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{deletingZone?.zoneName}</strong>?
-              This action cannot be undone.
+              Are you sure you want to delete <strong>{deletingZone?.zoneName}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

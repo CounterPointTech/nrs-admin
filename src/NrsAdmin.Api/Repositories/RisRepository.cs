@@ -41,10 +41,12 @@ public class RisRepository : BaseRepository
                        o.consulting_physicians AS ConsultingPhysicians,
                        o.patient_weight AS PatientWeight, o.creation_date AS CreationDate,
                        o.custom_field_1 AS CustomField1, o.custom_field_2 AS CustomField2,
-                       o.custom_field_3 AS CustomField3, o.custom_field_4 AS CustomField4
+                       o.custom_field_3 AS CustomField3, o.custom_field_4 AS CustomField4,
+                       si.description AS SiteName
                 FROM ris.orders o
                 LEFT JOIN ris.physicians ph ON o.referring_physician_id = ph.physician_id
                 LEFT JOIN ris.people rp ON ph.person_id = rp.person_id
+                LEFT JOIN shared.sites si ON o.site_code = si.site_code
                 WHERE o.accession_number = @Accession
                 """;
 
@@ -69,11 +71,13 @@ public class RisRepository : BaseRepository
                        o.consulting_physicians AS ConsultingPhysicians,
                        o.patient_weight AS PatientWeight, o.creation_date AS CreationDate,
                        o.custom_field_1 AS CustomField1, o.custom_field_2 AS CustomField2,
-                       o.custom_field_3 AS CustomField3, o.custom_field_4 AS CustomField4
+                       o.custom_field_3 AS CustomField3, o.custom_field_4 AS CustomField4,
+                       si.description AS SiteName
                 FROM ris.order_procedures op
                 JOIN ris.orders o ON op.order_id = o.order_id
                 LEFT JOIN ris.physicians ph ON o.referring_physician_id = ph.physician_id
                 LEFT JOIN ris.people rp ON ph.person_id = rp.person_id
+                LEFT JOIN shared.sites si ON o.site_code = si.site_code
                 WHERE op.study_uid = @StudyUid
                 """;
 
@@ -304,6 +308,9 @@ public class RisRepository : BaseRepository
         // Build patient comparison
         result.PatientComparison = BuildPatientComparison(study, risPatient);
 
+        // Build order comparison (PACS study fields vs RIS order/procedure fields)
+        result.OrderComparison = BuildOrderComparison(study, orders, allProcedures);
+
         return result;
     }
 
@@ -371,6 +378,38 @@ public class RisRepository : BaseRepository
                 RisValue = risDate?.ToString("yyyy-MM-dd")
             });
         }
+    }
+
+    private static OrderComparison BuildOrderComparison(
+        StudyDetail study, List<RisOrder> orders, List<RisOrderProcedure> procedures)
+    {
+        var firstOrder = orders.FirstOrDefault();
+        var firstProcedure = procedures.FirstOrDefault();
+
+        var comparison = new OrderComparison
+        {
+            PacsStudyDescription = study.AnatomicalArea,
+            PacsStudyUid = study.StudyUid,
+            PacsStudyDate = study.StudyDate.ToString("yyyy-MM-dd"),
+            PacsModality = study.Modality,
+            PacsFacility = study.FacilityName,
+
+            RisDescription = firstOrder?.Description,
+            RisStudyUid = firstProcedure?.StudyUid,
+            RisProcedureDate = firstProcedure?.ProcedureDateStart?.ToString("yyyy-MM-dd"),
+            RisModality = firstProcedure?.ModalityType,
+            RisFacility = firstOrder?.SiteName,
+        };
+
+        var discrepancies = new List<DiscrepancyField>();
+        CompareField(discrepancies, "Study Description", comparison.PacsStudyDescription, comparison.RisDescription);
+        CompareField(discrepancies, "Study UID", comparison.PacsStudyUid, comparison.RisStudyUid);
+        CompareField(discrepancies, "Study Date", comparison.PacsStudyDate, comparison.RisProcedureDate);
+        CompareField(discrepancies, "Modality", comparison.PacsModality, comparison.RisModality);
+        CompareField(discrepancies, "Facility", comparison.PacsFacility, comparison.RisFacility);
+        comparison.Discrepancies = discrepancies;
+
+        return comparison;
     }
 
     // ================================================================
@@ -721,13 +760,17 @@ public class RisRepository : BaseRepository
     private static readonly Dictionary<string, (string PacsTable, string PacsColumn, string RisTable, string RisColumn)> SyncFieldMap
         = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["accession"]   = ("pacs.studies",   "accession",      "ris.orders",    "accession_number"),
-        ["firstName"]   = ("pacs.patients",  "first_name",     "ris.people",    "first_name"),
-        ["lastName"]    = ("pacs.patients",  "last_name",      "ris.people",    "last_name"),
-        ["middleName"]  = ("pacs.patients",  "middle_name",    "ris.people",    "middle_initial"),
-        ["gender"]      = ("pacs.patients",  "gender",         "ris.people",    "sex"),
-        ["dateOfBirth"] = ("pacs.patients",  "birth_time",     "ris.people",    "date_of_birth"),
-        ["patientId"]   = ("pacs.patients",  "patient_id",     "ris.patients",  "patient_id"),
+        ["accession"]        = ("pacs.studies",   "accession",        "ris.orders",           "accession_number"),
+        ["firstName"]        = ("pacs.patients",  "first_name",       "ris.people",           "first_name"),
+        ["lastName"]         = ("pacs.patients",  "last_name",        "ris.people",           "last_name"),
+        ["middleName"]       = ("pacs.patients",  "middle_name",      "ris.people",           "middle_initial"),
+        ["gender"]           = ("pacs.patients",  "gender",           "ris.people",           "sex"),
+        ["dateOfBirth"]      = ("pacs.patients",  "birth_time",       "ris.people",           "date_of_birth"),
+        ["patientId"]        = ("pacs.patients",  "patient_id",       "ris.patients",         "patient_id"),
+        ["studyDescription"] = ("pacs.studies",   "anatomical_area",  "ris.orders",           "description"),
+        ["studyDate"]        = ("pacs.studies",   "study_date",       "ris.order_procedures", "procedure_date_start"),
+        ["studyUid"]         = ("pacs.studies",   "study_uid",        "ris.order_procedures", "study_uid"),
+        ["modality"]         = ("pacs.studies",   "modality",         "ris.order_procedures", "modality_text"),
     };
 
     /// <summary>
@@ -742,7 +785,8 @@ public class RisRepository : BaseRepository
         if (study is null) return false;
 
         // For date fields, parse the string to a DateTime
-        var isDateField = request.FieldName.Equals("dateOfBirth", StringComparison.OrdinalIgnoreCase);
+        var isDateField = request.FieldName.Equals("dateOfBirth", StringComparison.OrdinalIgnoreCase)
+                       || request.FieldName.Equals("studyDate", StringComparison.OrdinalIgnoreCase);
         object? dbValue = isDateField && !string.IsNullOrWhiteSpace(request.Value)
             ? DateTime.Parse(request.Value)
             : request.Value;
@@ -802,15 +846,302 @@ public class RisRepository : BaseRepository
 
     private static string? BuildRisUpdateSql(string table, string column, StudyDetail study)
     {
+        // modality_text is a virtual column name — for order_procedures we actually can't directly
+        // update modality since it's an FK (modality_id). Skip RIS side for modality sync.
+        if (table == "ris.order_procedures" && column == "modality_text")
+            return null;
+
         return table switch
         {
             "ris.orders" when !string.IsNullOrWhiteSpace(study.Accession)
                 => $"UPDATE ris.orders SET {column} = @Value WHERE accession_number = @Accession",
+            "ris.order_procedures" when !string.IsNullOrWhiteSpace(study.Accession)
+                => $"UPDATE ris.order_procedures SET {column} = @Value WHERE order_id IN (SELECT order_id FROM ris.orders WHERE accession_number = @Accession)",
             "ris.people"
                 => $"UPDATE ris.people SET {column} = @Value WHERE person_id IN (SELECT person_id FROM ris.patients WHERE patient_id = @PatientId LIMIT 1)",
             "ris.patients"
                 => $"UPDATE ris.patients SET {column} = @Value WHERE patient_id = @PatientId",
             _ => null
         };
+    }
+
+    // ================================================================
+    // Order & Procedure Merge
+    // ================================================================
+
+    /// <summary>
+    /// Merge source order into target order: move all procedures from source to target, then delete source.
+    /// </summary>
+    // Safe column names for field overrides (whitelist to prevent injection)
+    private static readonly Dictionary<string, string> ProcedureFieldColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["studyUid"] = "study_uid", ["status"] = "status", ["procedureName"] = "procedure_name",
+        ["notes"] = "notes", ["schedulerNotes"] = "scheduler_notes",
+        ["patientClass"] = "patient_class", ["patientLocation"] = "patient_location",
+        ["visitNumber"] = "visit_number", ["customField1"] = "custom_field_1",
+        ["customField2"] = "custom_field_2", ["customField3"] = "custom_field_3",
+        ["procedureDateStart"] = "procedure_date_start", ["procedureDateEnd"] = "procedure_date_end",
+        ["checkInTime"] = "check_in_time", ["statFlag"] = "stat_flag",
+    };
+
+    private static readonly Dictionary<string, string> OrderFieldColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["accessionNumber"] = "accession_number", ["description"] = "description",
+        ["status"] = "status", ["notes"] = "notes",
+        ["patientComplaint"] = "patient_complaint", ["physicianReason"] = "physician_reason",
+        ["customField1"] = "custom_field_1", ["customField2"] = "custom_field_2",
+        ["customField3"] = "custom_field_3", ["customField4"] = "custom_field_4",
+    };
+
+    public async Task MergeOrdersAsync(long targetOrderId, long sourceOrderId,
+        Dictionary<string, string?>? fieldOverrides = null)
+    {
+        await using var connection = await CreateConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+
+        try
+        {
+            // Apply field overrides to target order
+            if (fieldOverrides is { Count: > 0 })
+            {
+                foreach (var (fieldName, value) in fieldOverrides)
+                {
+                    if (OrderFieldColumns.TryGetValue(fieldName, out var column))
+                    {
+                        await connection.ExecuteAsync(
+                            $"UPDATE ris.orders SET {column} = @Value WHERE order_id = @TargetId",
+                            new { Value = value, TargetId = targetOrderId }, tx);
+                    }
+                }
+            }
+
+            // Move all procedures from source to target
+            await connection.ExecuteAsync(
+                "UPDATE ris.order_procedures SET order_id = @TargetId WHERE order_id = @SourceId",
+                new { TargetId = targetOrderId, SourceId = sourceOrderId }, tx);
+
+            // Delete the now-empty source order
+            await connection.ExecuteAsync(
+                "DELETE FROM ris.orders WHERE order_id = @SourceId",
+                new { SourceId = sourceOrderId }, tx);
+
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task MergeProceduresAsync(long targetProcedureId, long sourceProcedureId,
+        bool moveReports = true, Dictionary<string, string?>? fieldOverrides = null)
+    {
+        await using var connection = await CreateConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+
+        try
+        {
+            // Apply field overrides to target procedure
+            if (fieldOverrides is { Count: > 0 })
+            {
+                foreach (var (fieldName, value) in fieldOverrides)
+                {
+                    if (ProcedureFieldColumns.TryGetValue(fieldName, out var column))
+                    {
+                        // Handle boolean/timestamp conversion
+                        if (column == "stat_flag")
+                        {
+                            await connection.ExecuteAsync(
+                                $"UPDATE ris.order_procedures SET {column} = @Value WHERE procedure_id = @TargetId",
+                                new { Value = value == "true", TargetId = targetProcedureId }, tx);
+                        }
+                        else if (column is "procedure_date_start" or "procedure_date_end" or "check_in_time")
+                        {
+                            var dateVal = string.IsNullOrWhiteSpace(value) ? (DateTime?)null : DateTime.Parse(value);
+                            await connection.ExecuteAsync(
+                                $"UPDATE ris.order_procedures SET {column} = @Value WHERE procedure_id = @TargetId",
+                                new { Value = dateVal, TargetId = targetProcedureId }, tx);
+                        }
+                        else
+                        {
+                            await connection.ExecuteAsync(
+                                $"UPDATE ris.order_procedures SET {column} = @Value WHERE procedure_id = @TargetId",
+                                new { Value = value, TargetId = targetProcedureId }, tx);
+                        }
+                    }
+                }
+            }
+
+            // Move reports from source to target (if requested)
+            if (moveReports)
+            {
+                await connection.ExecuteAsync(
+                    "UPDATE ris.reports SET procedure_id = @TargetId WHERE procedure_id = @SourceId",
+                    new { TargetId = targetProcedureId, SourceId = sourceProcedureId }, tx);
+            }
+
+            // Move procedure steps from source to target
+            await connection.ExecuteAsync(
+                "UPDATE ris.order_procedure_steps SET procedure_id = @TargetId WHERE procedure_id = @SourceId",
+                new { TargetId = targetProcedureId, SourceId = sourceProcedureId }, tx);
+
+            // Delete the now-empty source procedure
+            await connection.ExecuteAsync(
+                "DELETE FROM ris.order_procedures WHERE procedure_id = @SourceId",
+                new { SourceId = sourceProcedureId }, tx);
+
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    // ================================================================
+    // Standard Reports (Precanned Text)
+    // ================================================================
+
+    public async Task<List<StandardReport>> GetStandardReportsAsync()
+    {
+        const string sql = """
+            SELECT standard_report_id AS StandardReportId,
+                   short_report_name AS ShortReportName,
+                   report_text AS ReportText,
+                   created_by AS CreatedBy
+            FROM ris.standard_reports
+            ORDER BY short_report_name
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var reports = await connection.QueryAsync<StandardReport>(sql);
+        return reports.ToList();
+    }
+
+    public async Task<StandardReport> CreateStandardReportAsync(string name, string text, string? createdBy)
+    {
+        const string sql = """
+            INSERT INTO ris.standard_reports (short_report_name, report_text, created_by)
+            VALUES (@Name, @Text, @CreatedBy)
+            RETURNING standard_report_id AS StandardReportId,
+                      short_report_name AS ShortReportName,
+                      report_text AS ReportText,
+                      created_by AS CreatedBy
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        return await connection.QuerySingleAsync<StandardReport>(sql,
+            new { Name = name, Text = text, CreatedBy = createdBy });
+    }
+
+    public async Task<bool> UpdateStandardReportAsync(long id, string name, string text)
+    {
+        const string sql = """
+            UPDATE ris.standard_reports
+            SET short_report_name = @Name, report_text = @Text
+            WHERE standard_report_id = @Id
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        return await connection.ExecuteAsync(sql, new { Id = id, Name = name, Text = text }) > 0;
+    }
+
+    public async Task<bool> DeleteStandardReportAsync(long id)
+    {
+        await using var connection = await CreateConnectionAsync();
+        return await connection.ExecuteAsync(
+            "DELETE FROM ris.standard_reports WHERE standard_report_id = @Id",
+            new { Id = id }) > 0;
+    }
+
+    // ================================================================
+    // Patient Cleanup / Deletion
+    // ================================================================
+
+    public async Task<PatientDeletionPreview?> GetPatientDeletionPreviewAsync(string patientId, string siteCode)
+    {
+        await using var connection = await CreateConnectionAsync();
+
+        // Get person_id for this patient
+        var personId = await connection.ExecuteScalarAsync<long?>(
+            "SELECT person_id FROM ris.patients WHERE patient_id = @PatientId AND site_code = @SiteCode",
+            new { PatientId = patientId, SiteCode = siteCode });
+
+        if (personId is null) return null;
+
+        var preview = new PatientDeletionPreview
+        {
+            PatientId = patientId,
+            SiteCode = siteCode,
+            PersonId = personId.Value,
+        };
+
+        preview.OrderCount = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM ris.orders WHERE patient_id = @PatientId AND site_code = @SiteCode",
+            new { PatientId = patientId, SiteCode = siteCode });
+
+        preview.InsuranceReferences = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM ris.insurance WHERE insured_person_id = @PersonId",
+            new { PersonId = personId.Value });
+
+        preview.BillingAccountCount = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM ris.billing_accounts WHERE patient_id = @PatientId AND site_code = @SiteCode",
+            new { PatientId = patientId, SiteCode = siteCode });
+
+        preview.DocumentCount = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM ris.documents WHERE patient_id = @PatientId AND patient_group = @SiteCode",
+            new { PatientId = patientId, SiteCode = siteCode });
+
+        preview.CanDelete = preview.InsuranceReferences == 0;
+        if (!preview.CanDelete)
+            preview.BlockingReason = $"Patient is referenced as an insured person in {preview.InsuranceReferences} insurance record(s). Clear these references first.";
+
+        return preview;
+    }
+
+    public async Task CleanupAndDeletePatientAsync(string patientId, string siteCode, bool clearInsurance)
+    {
+        await using var connection = await CreateConnectionAsync();
+        await using var tx = await connection.BeginTransactionAsync();
+
+        try
+        {
+            // Get person_id
+            var personId = await connection.ExecuteScalarAsync<long>(
+                "SELECT person_id FROM ris.patients WHERE patient_id = @PatientId AND site_code = @SiteCode",
+                new { PatientId = patientId, SiteCode = siteCode }, tx);
+
+            // Clear insurance references if requested
+            if (clearInsurance)
+            {
+                await connection.ExecuteAsync(
+                    "UPDATE ris.insurance SET insured_person_id = NULL WHERE insured_person_id = @PersonId",
+                    new { PersonId = personId }, tx);
+            }
+
+            // Clear current insurance records
+            await connection.ExecuteAsync(
+                "DELETE FROM ris.patient_current_insurance WHERE patient_id = @PatientId AND site_code = @SiteCode",
+                new { PatientId = patientId, SiteCode = siteCode }, tx);
+
+            // Delete patient (cascades to orders, billing, etc.)
+            await connection.ExecuteAsync(
+                "SELECT ris.patients_delete_id(@PatientId, @SiteCode)",
+                new { PatientId = patientId, SiteCode = siteCode }, tx);
+
+            // Delete the person record (demographics)
+            await connection.ExecuteAsync(
+                "DELETE FROM ris.people WHERE person_id = @PersonId",
+                new { PersonId = personId }, tx);
+
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 }

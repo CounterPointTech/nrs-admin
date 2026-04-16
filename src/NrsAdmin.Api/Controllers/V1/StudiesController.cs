@@ -341,6 +341,118 @@ public class StudiesController : ControllerBase
         return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
     }
 
+    [HttpGet("patient-groups")]
+    public async Task<ActionResult<ApiResponse<List<PatientGroup>>>> GetPatientGroups()
+    {
+        var groups = await _studyRepository.GetPatientGroupsAsync();
+        return Ok(ApiResponse<List<PatientGroup>>.Ok(groups));
+    }
+
+    [HttpPut("{id:long}/patient-group")]
+    public async Task<ActionResult<ApiResponse>> UpdatePatientGroup(long id, [FromBody] UpdatePatientGroupRequest request)
+    {
+        var updated = await _studyRepository.UpdatePatientGroupAsync(id, request.PatientGroup);
+        if (!updated)
+            return NotFound(ApiResponse.Fail($"Study {id} not found."));
+
+        _logger.LogInformation("Patient group updated for study {StudyId} to {PatientGroup}", id, request.PatientGroup);
+        return Ok(ApiResponse.Ok("Patient group updated."));
+    }
+
+    [HttpPost("{id:long}/merge-orders")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> MergeOrders(
+        long id, [FromBody] MergeOrdersRequest request)
+    {
+        await _risRepository.MergeOrdersAsync(request.TargetOrderId, request.SourceOrderId, request.FieldOverrides);
+        _logger.LogInformation("Merged order {Source} into {Target} for study {StudyId}",
+            request.SourceOrderId, request.TargetOrderId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!,
+            "Orders merged successfully."));
+    }
+
+    [HttpPost("{id:long}/merge-procedures")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> MergeProcedures(
+        long id, [FromBody] MergeProceduresRequest request)
+    {
+        await _risRepository.MergeProceduresAsync(request.TargetProcedureId, request.SourceProcedureId,
+            request.MoveReports, request.FieldOverrides);
+        _logger.LogInformation("Merged procedure {Source} into {Target} for study {StudyId}",
+            request.SourceProcedureId, request.TargetProcedureId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!,
+            "Procedures merged successfully."));
+    }
+
+    [HttpGet("standard-reports")]
+    public async Task<ActionResult<ApiResponse<List<StandardReport>>>> GetStandardReports()
+    {
+        var reports = await _risRepository.GetStandardReportsAsync();
+        return Ok(ApiResponse<List<StandardReport>>.Ok(reports));
+    }
+
+    [HttpPost("standard-reports")]
+    public async Task<ActionResult<ApiResponse<StandardReport>>> CreateStandardReport(
+        [FromBody] CreateStandardReportRequest request)
+    {
+        var report = await _risRepository.CreateStandardReportAsync(
+            request.ShortReportName, request.ReportText, request.CreatedBy);
+        return Ok(ApiResponse<StandardReport>.Ok(report, "Standard report created."));
+    }
+
+    [HttpPut("standard-reports/{reportId:long}")]
+    public async Task<ActionResult<ApiResponse>> UpdateStandardReport(
+        long reportId, [FromBody] UpdateStandardReportRequest request)
+    {
+        var updated = await _risRepository.UpdateStandardReportAsync(
+            reportId, request.ShortReportName, request.ReportText);
+        if (!updated) return NotFound(ApiResponse.Fail("Standard report not found."));
+        return Ok(ApiResponse.Ok("Standard report updated."));
+    }
+
+    [HttpDelete("standard-reports/{reportId:long}")]
+    public async Task<ActionResult<ApiResponse>> DeleteStandardReport(long reportId)
+    {
+        var deleted = await _risRepository.DeleteStandardReportAsync(reportId);
+        if (!deleted) return NotFound(ApiResponse.Fail("Standard report not found."));
+        return Ok(ApiResponse.Ok("Standard report deleted."));
+    }
+
+    [HttpGet("{id:long}/patient-deletion-preview")]
+    public async Task<ActionResult<ApiResponse<PatientDeletionPreview>>> GetPatientDeletionPreview(long id)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null) return NotFound(ApiResponse<PatientDeletionPreview>.Fail("Study not found."));
+
+        // Find the linked RIS patient
+        var unified = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        var risPatient = unified?.RisPatient;
+        if (risPatient is null)
+            return NotFound(ApiResponse<PatientDeletionPreview>.Fail("No linked RIS patient found."));
+
+        var preview = await _risRepository.GetPatientDeletionPreviewAsync(risPatient.PatientId, risPatient.SiteCode);
+        if (preview is null)
+            return NotFound(ApiResponse<PatientDeletionPreview>.Fail("RIS patient not found."));
+
+        return Ok(ApiResponse<PatientDeletionPreview>.Ok(preview));
+    }
+
+    [HttpDelete("{id:long}/ris-patient")]
+    public async Task<ActionResult<ApiResponse>> DeleteRisPatient(long id, [FromQuery] bool clearInsurance = false)
+    {
+        var unified = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        var risPatient = unified?.RisPatient;
+        if (risPatient is null)
+            return NotFound(ApiResponse.Fail("No linked RIS patient found."));
+
+        await _risRepository.CleanupAndDeletePatientAsync(risPatient.PatientId, risPatient.SiteCode, clearInsurance);
+        _logger.LogInformation("RIS patient {PatientId}/{SiteCode} deleted for study {StudyId} (clearInsurance={ClearInsurance})",
+            risPatient.PatientId, risPatient.SiteCode, id, clearInsurance);
+        return Ok(ApiResponse.Ok("RIS patient deleted successfully."));
+    }
+
     private static string CsvEscape(string? value)
     {
         if (string.IsNullOrEmpty(value)) return "";

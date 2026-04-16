@@ -154,7 +154,9 @@ public class StudyRepository : BaseRepository
                    s.is_valid AS IsValid, s.comments AS Comments,
                    s.custom_1 AS Custom1, s.custom_2 AS Custom2, s.custom_3 AS Custom3,
                    s.custom_4 AS Custom4, s.custom_5 AS Custom5, s.custom_6 AS Custom6,
-                   s.anatomical_area AS AnatomicalArea, s.priority AS Priority,
+                   s.anatomical_area AS AnatomicalArea,
+                   p.patient_group AS PatientGroup,
+                   s.priority AS Priority,
                    s.modified_date AS ModifiedDate,
                    s.first_processed_date AS FirstProcessedDate,
                    s.last_image_processed_date AS LastImageProcessedDate,
@@ -425,5 +427,34 @@ public class StudyRepository : BaseRepository
             "facilityname" => "f.name",
             _ => "s.study_date"
         };
+    }
+
+    // ==================== Patient Groups ====================
+
+    public async Task<List<PatientGroup>> GetPatientGroupsAsync()
+    {
+        const string sql = """
+            SELECT patient_group_id AS PatientGroupId, name AS Name,
+                   description AS Description, is_default AS IsDefault
+            FROM shared.vw_patient_groups
+            ORDER BY name
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var groups = await connection.QueryAsync<PatientGroup>(sql);
+        return groups.ToList();
+    }
+
+    public async Task<bool> UpdatePatientGroupAsync(long studyId, string patientGroup)
+    {
+        const string sql = """
+            UPDATE pacs.patients
+            SET patient_group = @PatientGroup
+            WHERE id = (SELECT patient FROM pacs.studies WHERE id = @StudyId)
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var rows = await connection.ExecuteAsync(sql, new { StudyId = studyId, PatientGroup = patientGroup });
+        return rows > 0;
     }
 }

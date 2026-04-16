@@ -40,6 +40,7 @@ public class RisOrder
     public string? CustomField2 { get; set; }
     public string? CustomField3 { get; set; }
     public string? CustomField4 { get; set; }
+    public string? SiteName { get; set; }
 }
 
 // ============== RIS Order Procedure ==============
@@ -110,6 +111,31 @@ public class RisReport
     public string? CustomField3 { get; set; }
 }
 
+// ============== Standard Reports (Precanned Text) ==============
+
+public class StandardReport
+{
+    public long StandardReportId { get; set; }
+    public string ShortReportName { get; set; } = string.Empty;
+    public string ReportText { get; set; } = string.Empty;
+    public string? CreatedBy { get; set; }
+}
+
+// ============== Patient Deletion Preview ==============
+
+public class PatientDeletionPreview
+{
+    public string PatientId { get; set; } = string.Empty;
+    public string SiteCode { get; set; } = string.Empty;
+    public long PersonId { get; set; }
+    public int OrderCount { get; set; }
+    public int InsuranceReferences { get; set; }
+    public int BillingAccountCount { get; set; }
+    public int DocumentCount { get; set; }
+    public bool CanDelete { get; set; }
+    public string? BlockingReason { get; set; }
+}
+
 // ============== RIS Patient Demographics ==============
 
 public class RisPatientDemographics
@@ -168,6 +194,25 @@ public class PatientComparison
     public List<DiscrepancyField> Discrepancies { get; set; } = [];
 }
 
+// ============== Order Comparison (PACS↔RIS Study Fields) ==============
+
+public class OrderComparison
+{
+    public string? PacsStudyDescription { get; set; }
+    public string? PacsStudyUid { get; set; }
+    public string? PacsStudyDate { get; set; }
+    public string? PacsModality { get; set; }
+    public string? PacsFacility { get; set; }
+
+    public string? RisDescription { get; set; }
+    public string? RisStudyUid { get; set; }
+    public string? RisProcedureDate { get; set; }
+    public string? RisModality { get; set; }
+    public string? RisFacility { get; set; }
+
+    public List<DiscrepancyField> Discrepancies { get; set; } = [];
+}
+
 // ============== Unified Study Detail ==============
 
 public class UnifiedStudyDetail
@@ -175,6 +220,7 @@ public class UnifiedStudyDetail
     public StudyDetail Study { get; set; } = null!;
     public StudyRisLink Link { get; set; } = new();
     public PatientComparison PatientComparison { get; set; } = new();
+    public OrderComparison OrderComparison { get; set; } = new();
     public List<RisOrder> Orders { get; set; } = [];
     public List<RisOrderProcedure> Procedures { get; set; } = [];
     public List<RisReport> Reports { get; set; } = [];

@@ -10,11 +10,12 @@ import {
 } from '@/components/ui/table';
 import {
   Layers, Image as ImageIcon, Star, ChevronDown, ChevronRight, Loader2,
-  Pencil, Save, X,
+  Pencil, Save, X, Radio,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Series, Dataset } from '@/lib/types';
 import { studyApi } from '@/lib/api';
+import { RouteStudyDialog } from '@/components/routing/route-study-dialog';
 
 function formatFileSize(bytes?: number | null): string {
   if (bytes == null) return '—';
@@ -38,6 +39,9 @@ export function SeriesDatasetsTab({ studyId, seriesList, onSeriesChange }: Props
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editModality, setEditModality] = useState('');
   const [editDescription, setEditDescription] = useState('');
+
+  // Route series state
+  const [routingSeries, setRoutingSeries] = useState<Series | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function toggleSeriesExpand(seriesId: number) {
@@ -89,6 +93,7 @@ export function SeriesDatasetsTab({ studyId, seriesList, onSeriesChange }: Props
   }
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
@@ -169,9 +174,16 @@ export function SeriesDatasetsTab({ studyId, seriesList, onSeriesChange }: Props
                             </Button>
                           </div>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => startEdit(series, e)} title="Edit series">
-                            <Pencil className="h-3 w-3" />
-                          </Button>
+                          <div className="flex gap-0.5">
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                              onClick={e => { e.stopPropagation(); setRoutingSeries(series); }}
+                              title="Route series">
+                              <Radio className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={e => startEdit(series, e)} title="Edit series">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -228,5 +240,13 @@ export function SeriesDatasetsTab({ studyId, seriesList, onSeriesChange }: Props
         )}
       </CardContent>
     </Card>
+    <RouteStudyDialog
+      mode="series"
+      seriesUid={routingSeries?.seriesUid}
+      context={routingSeries ? `${routingSeries.modality} — ${routingSeries.description || 'Series'}` : undefined}
+      open={routingSeries !== null}
+      onOpenChange={(open) => !open && setRoutingSeries(null)}
+    />
+    </>
   );
 }

@@ -7,18 +7,6 @@ namespace NrsAdmin.Api.Repositories;
 
 public class DashboardRepository : BaseRepository
 {
-    private static readonly Dictionary<int, string> StatusLabels = new()
-    {
-        [0] = "New",
-        [1] = "In Progress",
-        [2] = "Read",
-        [3] = "Final",
-        [4] = "Addendum",
-        [5] = "Cancelled",
-        [6] = "On Hold",
-        [7] = "Stat"
-    };
-
     public DashboardRepository(IOptionsMonitor<DatabaseSettings> settings) : base(settings) { }
 
     public async Task<DashboardStats> GetStatsAsync()
@@ -32,37 +20,45 @@ public class DashboardRepository : BaseRepository
         var todayStudies = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM pacs.studies WHERE study_date >= CURRENT_DATE");
 
-        var activeSessions = await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM shared.active_sessions WHERE expiration > NOW() AT TIME ZONE 'UTC'");
+        var totalImages = await connection.ExecuteScalarAsync<long>(
+            "SELECT COALESCE(SUM(num_images), 0) FROM pacs.series");
+
+        var activeUsers = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM shared.active_sessions WHERE expiration > NOW() AT TIME ZONE 'UTC' AND is_system = false");
+
+        var activeServices = await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM shared.active_sessions WHERE expiration > NOW() AT TIME ZONE 'UTC' AND is_system = true");
 
         var totalPatients = await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM pacs.patients");
 
-        var byStatus = (await connection.QueryAsync<StudyCountByStatus>(
+        var modalityBreakdown = (await connection.QueryAsync<ModalityBreakdown>(
             """
-            SELECT status AS Status, COUNT(*) AS Count
-            FROM pacs.studies
-            GROUP BY status
-            ORDER BY Count DESC
+            SELECT
+                sr.modality AS Modality,
+                COUNT(DISTINCT sr.study) AS StudyCount,
+                COALESCE(SUM(sr.num_images), 0) AS ImageCount,
+                COUNT(sr.id) AS SeriesCount,
+                COUNT(DISTINCT s.patient) AS PatientCount
+            FROM pacs.series sr
+            JOIN pacs.studies s ON sr.study = s.id
+            WHERE sr.modality IS NOT NULL AND sr.modality != ''
+            GROUP BY sr.modality
+            ORDER BY StudyCount DESC
+            LIMIT 20
             """)).ToList();
 
-        var byModality = (await connection.QueryAsync<StudyCountByModality>(
+        var facilityBreakdown = (await connection.QueryAsync<FacilityBreakdown>(
             """
-            SELECT modality AS Modality, COUNT(*) AS Count
-            FROM pacs.studies
-            WHERE modality IS NOT NULL AND modality != ''
-            GROUP BY modality
-            ORDER BY Count DESC
-            LIMIT 15
-            """)).ToList();
-
-        var byDate = (await connection.QueryAsync<StudyCountByDate>(
-            """
-            SELECT TO_CHAR(study_date, 'YYYY-MM-DD') AS Date, COUNT(*) AS Count
-            FROM pacs.studies
-            WHERE study_date >= CURRENT_DATE - INTERVAL '30 days'
-            GROUP BY TO_CHAR(study_date, 'YYYY-MM-DD')
-            ORDER BY Date ASC
+            SELECT
+                COALESCE(f.facility_id, 0) AS FacilityId,
+                COALESCE(f.name, 'Unknown') AS FacilityName,
+                COUNT(*) AS StudyCount,
+                COUNT(DISTINCT s.patient) AS PatientCount
+            FROM pacs.studies s
+            LEFT JOIN shared.facilities f ON s.facility_id = f.facility_id
+            GROUP BY f.facility_id, f.name
+            ORDER BY StudyCount DESC
             """)).ToList();
 
         var recentStudies = (await connection.QueryAsync<RecentStudy>(
@@ -82,21 +78,16 @@ public class DashboardRepository : BaseRepository
             LIMIT 10
             """)).ToList();
 
-        // Enrich status labels
-        foreach (var item in byStatus)
-        {
-            item.Label = StatusLabels.GetValueOrDefault(item.Status, $"Status {item.Status}");
-        }
-
         return new DashboardStats
         {
             TotalStudies = totalStudies,
             TodayStudies = todayStudies,
-            ActiveSessions = activeSessions,
+            TotalImages = totalImages,
+            ActiveUsers = activeUsers,
+            ActiveServices = activeServices,
             TotalPatients = totalPatients,
-            StudiesByStatus = byStatus,
-            StudiesByModality = byModality,
-            StudiesByDate = byDate,
+            ModalityBreakdown = modalityBreakdown,
+            FacilityBreakdown = facilityBreakdown,
             RecentStudies = recentStudies
         };
     }

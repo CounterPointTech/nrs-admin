@@ -73,6 +73,19 @@ import {
   SearchRisOrdersFilters,
   SyncFieldRequest,
   RisOrder,
+  PatientGroup,
+  StandardReport,
+  PatientDeletionPreview,
+  MergeOrdersRequest,
+  MergeProceduresRequest,
+  RouteQueueItem,
+  RouteError,
+  RouteHistoryItem,
+  QueueSummaryResponse,
+  RouteQueueSearchParams,
+  RouteHistorySearchParams,
+  QueueStudyRequest,
+  QueueSeriesRequest,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -605,6 +618,56 @@ export const studyApi = {
       body: JSON.stringify(request),
     });
   },
+
+  getPatientGroups: async (): Promise<ApiResponse<PatientGroup[]>> => {
+    return fetchWithAuth<PatientGroup[]>('/api/v1/studies/patient-groups');
+  },
+
+  updatePatientGroup: async (studyId: number, patientGroup: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/studies/${studyId}/patient-group`, {
+      method: 'PUT',
+      body: JSON.stringify({ patientGroup }),
+    });
+  },
+
+  mergeOrders: async (studyId: number, request: MergeOrdersRequest): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/merge-orders`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  mergeProcedures: async (studyId: number, request: MergeProceduresRequest): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(`/api/v1/studies/${studyId}/merge-procedures`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  getStandardReports: async (): Promise<ApiResponse<StandardReport[]>> => {
+    return fetchWithAuth<StandardReport[]>('/api/v1/studies/standard-reports');
+  },
+
+  createStandardReport: async (name: string, text: string, createdBy?: string): Promise<ApiResponse<StandardReport>> => {
+    return fetchWithAuth<StandardReport>('/api/v1/studies/standard-reports', {
+      method: 'POST',
+      body: JSON.stringify({ shortReportName: name, reportText: text, createdBy }),
+    });
+  },
+
+  deleteStandardReport: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/studies/standard-reports/${id}`, { method: 'DELETE' });
+  },
+
+  getPatientDeletionPreview: async (studyId: number): Promise<ApiResponse<PatientDeletionPreview>> => {
+    return fetchWithAuth<PatientDeletionPreview>(`/api/v1/studies/${studyId}/patient-deletion-preview`);
+  },
+
+  deleteRisPatient: async (studyId: number, clearInsurance: boolean): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/studies/${studyId}/ris-patient?clearInsurance=${clearInsurance}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ============== Dashboard API ==============
@@ -943,6 +1006,62 @@ export const reportTemplateApi = {
 
   renderPreview: async (request: RenderPreviewRequest): Promise<ApiResponse<string>> => {
     return fetchWithAuth<string>('/api/v1/report-templates/preview', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+};
+
+// ============== Route Queue API ==============
+export const routeQueueApi = {
+  getQueue: async (params: RouteQueueSearchParams = {}): Promise<ApiResponse<PagedResponse<RouteQueueItem>>> => {
+    const qs = buildQueryString(params as Record<string, unknown>);
+    return fetchWithAuth<PagedResponse<RouteQueueItem>>(`/api/v1/route-queue${qs}`);
+  },
+
+  getErrors: async (params: RouteQueueSearchParams = {}): Promise<ApiResponse<PagedResponse<RouteError>>> => {
+    const qs = buildQueryString(params as Record<string, unknown>);
+    return fetchWithAuth<PagedResponse<RouteError>>(`/api/v1/route-queue/errors${qs}`);
+  },
+
+  getHistory: async (params: RouteHistorySearchParams = {}): Promise<ApiResponse<PagedResponse<RouteHistoryItem>>> => {
+    const qs = buildQueryString(params as Record<string, unknown>);
+    return fetchWithAuth<PagedResponse<RouteHistoryItem>>(`/api/v1/route-queue/history${qs}`);
+  },
+
+  getSummary: async (): Promise<ApiResponse<QueueSummaryResponse>> => {
+    return fetchWithAuth<QueueSummaryResponse>('/api/v1/route-queue/summary');
+  },
+
+  deleteQueueItem: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/route-queue/${id}`, { method: 'DELETE' });
+  },
+
+  deleteQueueByDestination: async (destinationId: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/route-queue/destination/${destinationId}`, { method: 'DELETE' });
+  },
+
+  retryError: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/route-queue/retry/${id}`, { method: 'POST' });
+  },
+
+  retryAllErrors: async (destinationId: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/route-queue/retry-all/${destinationId}`, { method: 'POST' });
+  },
+
+  clearErrors: async (destinationId: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/route-queue/errors/${destinationId}`, { method: 'DELETE' });
+  },
+
+  queueStudy: async (request: QueueStudyRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>('/api/v1/route-queue/study', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  queueSeries: async (request: QueueSeriesRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>('/api/v1/route-queue/series', {
       method: 'POST',
       body: JSON.stringify(request),
     });

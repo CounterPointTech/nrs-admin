@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ColumnDef,
   flexRender,
@@ -10,33 +10,21 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { pacsDestinationApi, routingZoneApi } from '@/lib/api';
+import { pacsDestinationApi } from '@/lib/api';
 import {
   PacsDestination,
-  RoutingZone,
   CreatePacsDestinationRequest,
   RouteHistoryEntry,
   getDestinationTypeLabel,
@@ -44,17 +32,10 @@ import {
   DESTINATION_TYPE_LABELS,
 } from '@/lib/types';
 import {
-  Radio,
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  ArrowUpDown,
-  Loader2,
-  AlertCircle,
-  History,
+  Plus, Search, Pencil, Trash2, ArrowUpDown, Loader2, AlertCircle, History, ListOrdered,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRoutingContext } from './routing-context';
 
 const TRANSFER_SYNTAX_OPTIONS = [
   'NegotiateTransferContext',
@@ -69,10 +50,8 @@ const TRANSFER_SYNTAX_OPTIONS = [
   'RLELossless',
 ];
 
-export default function PacsDestinationsPage() {
-  const [destinations, setDestinations] = useState<PacsDestination[]>([]);
-  const [zones, setZones] = useState<RoutingZone[]>([]);
-  const [loading, setLoading] = useState(true);
+export function DestinationsSection() {
+  const { destinations, zones, initialLoading, reloadDestinations, navigateTo } = useRoutingContext();
   const [search, setSearch] = useState('');
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -87,36 +66,11 @@ export default function PacsDestinationsPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState<CreatePacsDestinationRequest>({
-    name: '',
-    address: '',
-    aeTitle: '',
-    port: 104,
-    type: 0,
-    numTries: 3,
-    frequency: 0,
-    compression: 1,
-    status: 0,
-    routeRelated: false,
-    transferSyntax: 'NegotiateTransferContext',
+    name: '', address: '', aeTitle: '', port: 104, type: 0,
+    numTries: 3, frequency: 0, compression: 1, status: 0,
+    routeRelated: false, transferSyntax: 'NegotiateTransferContext',
   });
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const [destRes, zoneRes] = await Promise.all([
-      pacsDestinationApi.getAll(),
-      routingZoneApi.getAll(),
-    ]);
-
-    if (destRes.success && destRes.data) setDestinations(destRes.data);
-    if (zoneRes.success && zoneRes.data) setZones(zoneRes.data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const columns = useMemo<ColumnDef<PacsDestination>[]>(() => [
     {
@@ -146,9 +100,7 @@ export default function PacsDestinationsPage() {
       accessorKey: 'address',
       header: 'Address',
       cell: ({ row }) => (
-        <span className="font-mono text-xs">
-          {row.original.address}:{row.original.port}
-        </span>
+        <span className="font-mono text-xs">{row.original.address}:{row.original.port}</span>
       ),
     },
     {
@@ -176,33 +128,30 @@ export default function PacsDestinationsPage() {
       cell: ({ row }) => row.original.routingZoneName || '—',
     },
     {
-      accessorKey: 'transferSyntax',
-      header: 'Transfer Syntax',
-      cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground">{row.original.transferSyntax}</span>
-      ),
-    },
-    {
       id: 'actions',
       header: '',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8"
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="View Queue"
+            onClick={() => navigateTo('queue', { destinationId: row.original.destinationId })}>
+            <ListOrdered className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Route History"
             onClick={() => openHistory(row.original)}>
             <History className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8"
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit"
             onClick={() => openEditor(row.original)}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Delete"
             onClick={() => { setDeletingDest(row.original); setDeleteOpen(true); }}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       ),
     },
-  ], []);
+  ], [navigateTo]);
 
   const table = useReactTable({
     data: destinations,
@@ -219,34 +168,18 @@ export default function PacsDestinationsPage() {
     if (dest) {
       setEditingDest(dest);
       setFormData({
-        name: dest.name,
-        address: dest.address,
-        aeTitle: dest.aeTitle,
-        port: dest.port,
-        type: dest.type,
-        password: dest.password,
-        numTries: dest.numTries,
-        frequency: dest.frequency,
-        compression: dest.compression,
-        status: dest.status,
-        routeRelated: dest.routeRelated,
-        transferSyntax: dest.transferSyntax,
-        routingZone: dest.routingZone,
+        name: dest.name, address: dest.address, aeTitle: dest.aeTitle,
+        port: dest.port, type: dest.type, password: dest.password,
+        numTries: dest.numTries, frequency: dest.frequency, compression: dest.compression,
+        status: dest.status, routeRelated: dest.routeRelated,
+        transferSyntax: dest.transferSyntax, routingZone: dest.routingZone,
       });
     } else {
       setEditingDest(null);
       setFormData({
-        name: '',
-        address: '',
-        aeTitle: '',
-        port: 104,
-        type: 0,
-        numTries: 3,
-        frequency: 0,
-        compression: 1,
-        status: 0,
-        routeRelated: false,
-        transferSyntax: 'NegotiateTransferContext',
+        name: '', address: '', aeTitle: '', port: 104, type: 0,
+        numTries: 3, frequency: 0, compression: 1, status: 0,
+        routeRelated: false, transferSyntax: 'NegotiateTransferContext',
       });
     }
     setEditorOpen(true);
@@ -274,7 +207,7 @@ export default function PacsDestinationsPage() {
         if (res.success) {
           toast.success('Destination updated');
           setEditorOpen(false);
-          await loadData();
+          await reloadDestinations();
         } else {
           toast.error(res.message || 'Failed to update destination');
         }
@@ -283,7 +216,7 @@ export default function PacsDestinationsPage() {
         if (res.success) {
           toast.success('Destination created');
           setEditorOpen(false);
-          await loadData();
+          await reloadDestinations();
         } else {
           toast.error(res.message || 'Failed to create destination');
         }
@@ -302,7 +235,7 @@ export default function PacsDestinationsPage() {
         toast.success('Destination deleted');
         setDeleteOpen(false);
         setDeletingDest(null);
-        await loadData();
+        await reloadDestinations();
       } else {
         toast.error(res.message || 'Failed to delete destination');
       }
@@ -312,44 +245,34 @@ export default function PacsDestinationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="PACS Destinations"
-        description="Manage DICOM routing destinations"
-        icon={Radio}
-        actions={
-          <Button onClick={() => openEditor()} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Destination
-          </Button>
-        }
-      />
-
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search destinations..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+    <div className="space-y-3">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Search destinations..." value={search}
+              onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-xs w-56" />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {table.getFilteredRowModel().rows.length} destinations
+          </span>
         </div>
-        <span className="text-sm text-muted-foreground">
-          {table.getFilteredRowModel().rows.length} destinations
-        </span>
+        <Button size="sm" onClick={() => openEditor()} className="gap-1.5 h-8 text-xs">
+          <Plus className="h-3.5 w-3.5" /> Add Destination
+        </Button>
       </div>
 
       {/* Table */}
       <div className="rounded-lg border bg-card">
-        {loading ? (
+        {initialLoading ? (
           <div className="flex items-center justify-center h-48">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : destinations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <AlertCircle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-muted-foreground">No destinations configured</p>
+            <p className="text-sm text-muted-foreground">No destinations configured</p>
             <Button variant="outline" size="sm" onClick={() => openEditor()}>
               <Plus className="h-4 w-4 mr-1" /> Add your first destination
             </Button>
@@ -357,9 +280,9 @@ export default function PacsDestinationsPage() {
         ) : (
           <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
                     <TableHead key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
@@ -402,13 +325,13 @@ export default function PacsDestinationsPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input id="name" value={formData.name}
+                <Label htmlFor="dest-name">Name *</Label>
+                <Input id="dest-name" value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="aeTitle">AE Title *</Label>
-                <Input id="aeTitle" value={formData.aeTitle} maxLength={16}
+                <Label htmlFor="dest-ae">AE Title *</Label>
+                <Input id="dest-ae" value={formData.aeTitle} maxLength={16}
                   className="font-mono" placeholder="Max 16 chars"
                   onChange={(e) => setFormData({ ...formData, aeTitle: e.target.value.toUpperCase() })} />
               </div>
@@ -416,13 +339,13 @@ export default function PacsDestinationsPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="address">Address *</Label>
-                <Input id="address" value={formData.address} placeholder="hostname or IP"
+                <Label htmlFor="dest-addr">Address *</Label>
+                <Input id="dest-addr" value={formData.address} placeholder="hostname or IP"
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="port">Port *</Label>
-                <Input id="port" type="number" min={1} max={65535} value={formData.port}
+                <Label htmlFor="dest-port">Port *</Label>
+                <Input id="dest-port" type="number" min={1} max={65535} value={formData.port}
                   onChange={(e) => setFormData({ ...formData, port: Number(e.target.value) })} />
               </div>
             </div>
@@ -470,18 +393,18 @@ export default function PacsDestinationsPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="numTries">Retries</Label>
-                <Input id="numTries" type="number" min={0} value={formData.numTries}
+                <Label htmlFor="dest-tries">Retries</Label>
+                <Input id="dest-tries" type="number" min={0} value={formData.numTries}
                   onChange={(e) => setFormData({ ...formData, numTries: Number(e.target.value) })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="frequency">Frequency</Label>
-                <Input id="frequency" type="number" min={0} value={formData.frequency}
+                <Label htmlFor="dest-freq">Frequency</Label>
+                <Input id="dest-freq" type="number" min={0} value={formData.frequency}
                   onChange={(e) => setFormData({ ...formData, frequency: Number(e.target.value) })} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="compression">Compression</Label>
-                <Input id="compression" type="number" min={0} value={formData.compression}
+                <Label htmlFor="dest-comp">Compression</Label>
+                <Input id="dest-comp" type="number" min={0} value={formData.compression}
                   onChange={(e) => setFormData({ ...formData, compression: Number(e.target.value) })} />
               </div>
             </div>
@@ -500,8 +423,8 @@ export default function PacsDestinationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={formData.password || ''}
+              <Label htmlFor="dest-pass">Password</Label>
+              <Input id="dest-pass" type="password" value={formData.password || ''}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value || undefined })} />
             </div>
 
@@ -524,14 +447,13 @@ export default function PacsDestinationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Destination</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{deletingDest?.name}</strong>?
-              This action cannot be undone.
+              Are you sure you want to delete <strong>{deletingDest?.name}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

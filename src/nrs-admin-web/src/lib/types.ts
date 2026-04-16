@@ -229,6 +229,7 @@ export interface StudyDetail extends Study {
   custom5?: string;
   custom6?: string;
   anatomicalArea?: string;
+  patientGroup?: string;
   priority: number;
   modifiedDate: string;
   firstProcessedDate?: string;
@@ -269,6 +270,13 @@ export interface StudySearchFilters {
   search?: string;
   sortBy?: string;
   sortDesc?: boolean;
+}
+
+export interface PatientGroup {
+  patientGroupId: number;
+  name: string;
+  description?: string;
+  isDefault: boolean;
 }
 
 export interface Series {
@@ -318,28 +326,28 @@ export interface AeActivity {
 export interface DashboardStats {
   totalStudies: number;
   todayStudies: number;
-  activeSessions: number;
+  totalImages: number;
+  activeUsers: number;
+  activeServices: number;
   totalPatients: number;
-  studiesByStatus: StudyCountByStatus[];
-  studiesByModality: StudyCountByModality[];
-  studiesByDate: StudyCountByDate[];
+  modalityBreakdown: ModalityBreakdown[];
+  facilityBreakdown: FacilityBreakdown[];
   recentStudies: RecentStudy[];
 }
 
-export interface StudyCountByStatus {
-  status: number;
-  label: string;
-  count: number;
-}
-
-export interface StudyCountByModality {
+export interface ModalityBreakdown {
   modality: string;
-  count: number;
+  studyCount: number;
+  imageCount: number;
+  seriesCount: number;
+  patientCount: number;
 }
 
-export interface StudyCountByDate {
-  date: string;
-  count: number;
+export interface FacilityBreakdown {
+  facilityId: number;
+  facilityName: string;
+  studyCount: number;
+  patientCount: number;
 }
 
 export interface RecentStudy {
@@ -676,6 +684,7 @@ export interface RisOrder {
   customField2?: string;
   customField3?: string;
   customField4?: string;
+  siteName?: string;
 }
 
 export interface RisOrderProcedure {
@@ -737,6 +746,44 @@ export interface RisReport {
   customField3?: string;
 }
 
+export interface StandardReport {
+  standardReportId: number;
+  shortReportName: string;
+  reportText: string;
+  createdBy?: string;
+}
+
+export interface MergeOrdersRequest {
+  targetOrderId: number;
+  sourceOrderId: number;
+  fieldOverrides?: Record<string, string | null>;
+}
+
+export interface MergeProceduresRequest {
+  targetProcedureId: number;
+  sourceProcedureId: number;
+  moveReports?: boolean;
+  fieldOverrides?: Record<string, string | null>;
+}
+
+export interface PatientDeletionPreview {
+  patientId: string;
+  siteCode: string;
+  personId: number;
+  orderCount: number;
+  insuranceReferences: number;
+  billingAccountCount: number;
+  documentCount: number;
+  canDelete: boolean;
+  blockingReason?: string;
+}
+
+export interface CreateStandardReportRequest {
+  shortReportName: string;
+  reportText: string;
+  createdBy?: string;
+}
+
 export interface RisPatientDemographics {
   patientId: string;
   siteCode: string;
@@ -786,10 +833,25 @@ export interface PatientComparison {
   discrepancies: DiscrepancyField[];
 }
 
+export interface OrderComparison {
+  pacsStudyDescription?: string;
+  pacsStudyUid?: string;
+  pacsStudyDate?: string;
+  pacsModality?: string;
+  pacsFacility?: string;
+  risDescription?: string;
+  risStudyUid?: string;
+  risProcedureDate?: string;
+  risModality?: string;
+  risFacility?: string;
+  discrepancies: DiscrepancyField[];
+}
+
 export interface UnifiedStudyDetail {
   study: StudyDetail;
   link: StudyRisLink;
   patientComparison: PatientComparison;
+  orderComparison: OrderComparison;
   orders: RisOrder[];
   procedures: RisOrderProcedure[];
   reports: RisReport[];
@@ -884,4 +946,110 @@ export interface SyncFieldRequest {
   fieldName: string;
   value?: string;
   target: SyncTarget;
+}
+
+// ==================== Route Queue ====================
+
+export interface RouteQueueItem {
+  id: number;
+  destinationId: number;
+  dataset: number;
+  timeQueued: string;
+  priority: number;
+  status: number;
+  nextTryTime: string | null;
+  remainingTries: number;
+  overwriteExisting: boolean;
+  destinationName: string | null;
+  studyUid: string | null;
+  patientName: string | null;
+  patientId: string | null;
+  modality: string | null;
+  seriesDescription: string | null;
+}
+
+export interface RouteError {
+  id: number;
+  destinationId: number;
+  dataset: number;
+  timeQueued: string;
+  priority: number;
+  error: string;
+  lastTryTime: string;
+  overwriteExisting: boolean;
+  destinationName: string | null;
+  studyUid: string | null;
+  patientName: string | null;
+  patientId: string | null;
+  modality: string | null;
+  seriesDescription: string | null;
+}
+
+export interface RouteHistoryItem {
+  id: number;
+  destinationId: number;
+  dataset: number;
+  timeSent: string;
+  overwriteExisting: boolean;
+  destinationName: string | null;
+  studyUid: string | null;
+  patientName: string | null;
+  patientId: string | null;
+  modality: string | null;
+  seriesDescription: string | null;
+}
+
+export interface QueueSummary {
+  destinationId: number;
+  destinationName: string;
+  pendingCount: number;
+  errorCount: number;
+  completedToday: number;
+}
+
+export interface QueueSummaryResponse {
+  destinations: QueueSummary[];
+  totals: {
+    pending: number;
+    errors: number;
+    completedToday: number;
+  };
+}
+
+export interface RouteQueueSearchParams {
+  destinationId?: number;
+  status?: number;
+  priority?: number;
+  patientName?: string;
+  studyUid?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortDesc?: boolean;
+}
+
+export interface RouteHistorySearchParams {
+  destinationId?: number;
+  patientName?: string;
+  studyUid?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortDesc?: boolean;
+}
+
+export interface QueueStudyRequest {
+  studyUid: string;
+  destinationId: number;
+  priority?: number;
+  overwriteExisting?: boolean;
+}
+
+export interface QueueSeriesRequest {
+  seriesUid: string;
+  destinationId: number;
+  priority?: number;
+  overwriteExisting?: boolean;
 }

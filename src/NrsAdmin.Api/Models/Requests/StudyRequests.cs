@@ -77,3 +77,8 @@ public class BulkUpdateStatusRequestValidator : AbstractValidator<BulkUpdateStat
             .WithMessage("Status must be between 0 and 7.");
     }
 }
+
+public class UpdatePatientGroupRequest
+{
+    public string PatientGroup { get; set; } = string.Empty;
+}

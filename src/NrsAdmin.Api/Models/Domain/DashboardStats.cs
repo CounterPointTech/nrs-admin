@@ -4,31 +4,30 @@ public class DashboardStats
 {
     public int TotalStudies { get; set; }
     public int TodayStudies { get; set; }
-    public int ActiveSessions { get; set; }
+    public long TotalImages { get; set; }
+    public int ActiveUsers { get; set; }
+    public int ActiveServices { get; set; }
     public int TotalPatients { get; set; }
-    public List<StudyCountByStatus> StudiesByStatus { get; set; } = [];
-    public List<StudyCountByModality> StudiesByModality { get; set; } = [];
-    public List<StudyCountByDate> StudiesByDate { get; set; } = [];
+    public List<ModalityBreakdown> ModalityBreakdown { get; set; } = [];
+    public List<FacilityBreakdown> FacilityBreakdown { get; set; } = [];
     public List<RecentStudy> RecentStudies { get; set; } = [];
 }
 
-public class StudyCountByStatus
-{
-    public int Status { get; set; }
-    public string Label { get; set; } = string.Empty;
-    public int Count { get; set; }
-}
-
-public class StudyCountByModality
+public class ModalityBreakdown
 {
     public string Modality { get; set; } = string.Empty;
-    public int Count { get; set; }
+    public int StudyCount { get; set; }
+    public long ImageCount { get; set; }
+    public int SeriesCount { get; set; }
+    public int PatientCount { get; set; }
 }
 
-public class StudyCountByDate
+public class FacilityBreakdown
 {
-    public string Date { get; set; } = string.Empty;
-    public int Count { get; set; }
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = string.Empty;
+    public int StudyCount { get; set; }
+    public int PatientCount { get; set; }
 }
 
 public class RecentStudy

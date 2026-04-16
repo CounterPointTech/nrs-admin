@@ -18,7 +18,6 @@ import {
   Sun,
   Shield,
   Radio,
-  Waypoints,
   HardDrive,
   DollarSign,
   Stethoscope,
@@ -46,8 +45,7 @@ const dashboardNavItems = [
 
 const pacsNavItems = [
   { title: 'Study Editor', href: '/studies', icon: FileSearch },
-  { title: 'Destinations', href: '/pacs/destinations', icon: Radio },
-  { title: 'Routing Zones', href: '/pacs/routing-zones', icon: Waypoints },
+  { title: 'Routing', href: '/pacs/routing', icon: Radio },
 ];
 
 const reportsNavItems = [

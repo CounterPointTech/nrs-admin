@@ -48,8 +48,17 @@ public class StudyDetail : StudySearchResult
     public string? Custom5 { get; set; }
     public string? Custom6 { get; set; }
     public string? AnatomicalArea { get; set; }
+    public string? PatientGroup { get; set; }
     public int Priority { get; set; }
     public DateTime ModifiedDate { get; set; }
     public DateTime? FirstProcessedDate { get; set; }
     public DateTime? LastImageProcessedDate { get; set; }
+}
+
+public class PatientGroup
+{
+    public int PatientGroupId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsDefault { get; set; }
 }

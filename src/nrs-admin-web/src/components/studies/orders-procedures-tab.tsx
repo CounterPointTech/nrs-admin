@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,9 @@ import {
   XCircle,
   AlertTriangle,
   Zap,
+  ShieldCheck,
+  RotateCcw,
+  Merge,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -29,8 +32,12 @@ import {
   RisProcedureStep,
   UpdateRisOrderRequest,
   UpdateRisOrderProcedureRequest,
+  SyncTarget,
 } from '@/lib/types';
 import { studyApi } from '@/lib/api';
+import { SyncFieldRow, SyncFieldState } from './sync-field-row';
+import { MergeProcedureDialog } from './merge-procedure-dialog';
+import { MergeOrderDialog } from './merge-order-dialog';
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '—';
@@ -79,8 +86,28 @@ interface Props {
   onDataChange: (data: UnifiedStudyDetail) => void;
 }
 
+const ORDER_SYNC_FIELDS = ['studyDescription', 'studyUid', 'studyDate', 'modality'] as const;
+type OrderSyncFieldName = typeof ORDER_SYNC_FIELDS[number];
+
+const ORDER_SYNC_LABELS: Record<OrderSyncFieldName, string> = {
+  studyDescription: 'Study Description',
+  studyUid: 'Study UID',
+  studyDate: 'Study Date',
+  modality: 'Modality',
+};
+
+function buildOrderSyncOriginals(data: UnifiedStudyDetail): Record<OrderSyncFieldName, SyncFieldState> {
+  const oc = data.orderComparison;
+  return {
+    studyDescription: { pacsValue: oc.pacsStudyDescription || '', risValue: oc.risDescription || '' },
+    studyUid: { pacsValue: oc.pacsStudyUid || '', risValue: oc.risStudyUid || '' },
+    studyDate: { pacsValue: oc.pacsStudyDate || '', risValue: oc.risProcedureDate || '' },
+    modality: { pacsValue: oc.pacsModality || '', risValue: oc.risModality || '' },
+  };
+}
+
 export function OrdersProceduresTab({ data, onDataChange }: Props) {
-  const { study, orders, procedures } = data;
+  const { study, orders, procedures, orderComparison } = data;
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set(orders.map(o => o.orderId)));
   const [expandedProcs, setExpandedProcs] = useState<Set<number>>(new Set());
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
@@ -88,6 +115,58 @@ export function OrdersProceduresTab({ data, onDataChange }: Props) {
   const [orderForm, setOrderForm] = useState<UpdateRisOrderRequest>({});
   const [procForm, setProcForm] = useState<UpdateRisOrderProcedureRequest>({});
   const [saving, setSaving] = useState(false);
+
+  // Merge state
+  const [mergeOrderOpen, setMergeOrderOpen] = useState(false);
+  const [mergeProcContext, setMergeProcContext] = useState<{ orderId: number; target: RisOrderProcedure; source: RisOrderProcedure } | null>(null);
+
+  // Order-Study sync state
+  const [syncFields, setSyncFields] = useState<Record<OrderSyncFieldName, SyncFieldState>>(
+    () => buildOrderSyncOriginals(data)
+  );
+  const [syncSaving, setSyncSaving] = useState(false);
+  const originals = buildOrderSyncOriginals(data);
+
+  const pendingSyncChanges = ORDER_SYNC_FIELDS.filter(f => {
+    const o = originals[f];
+    const c = syncFields[f];
+    return o.pacsValue !== c.pacsValue || o.risValue !== c.risValue;
+  });
+
+  async function commitSyncChanges() {
+    setSyncSaving(true);
+    try {
+      for (const field of pendingSyncChanges) {
+        const original = originals[field];
+        const current = syncFields[field];
+        const pacsChanged = original.pacsValue !== current.pacsValue;
+        const risChanged = original.risValue !== current.risValue;
+
+        const target: SyncTarget = pacsChanged && risChanged ? 'Both'
+          : pacsChanged ? 'Pacs' : 'Ris';
+
+        // Use the value that was changed (for "Both", they should be the same)
+        const value = pacsChanged ? current.pacsValue : current.risValue;
+
+        await studyApi.syncField(study.id, { fieldName: field, value, target });
+      }
+
+      const refreshed = await studyApi.getUnified(study.id);
+      if (refreshed.success && refreshed.data) {
+        onDataChange(refreshed.data);
+        setSyncFields(buildOrderSyncOriginals(refreshed.data));
+        toast.success('Study fields synced');
+      }
+    } catch {
+      toast.error('Failed to sync fields');
+    } finally {
+      setSyncSaving(false);
+    }
+  }
+
+  function discardSyncChanges() {
+    setSyncFields(buildOrderSyncOriginals(data));
+  }
 
   function toggleOrder(id: number) {
     setExpandedOrders(prev => {
@@ -190,8 +269,99 @@ export function OrdersProceduresTab({ data, onDataChange }: Props) {
     );
   }
 
+  const hasOrderDiscrepancies = orderComparison.discrepancies.length > 0;
+  const hasSyncPending = pendingSyncChanges.length > 0;
+
   return (
     <div className="space-y-4">
+      {/* Order-Study Field Sync */}
+      {orders.length > 0 && (
+        <Card className="shadow-none">
+          <CardHeader className="pb-1 pt-3 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Study ↔ Order Field Matching</CardTitle>
+              <div className="flex items-center gap-1.5">
+                {hasSyncPending ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={discardSyncChanges} disabled={syncSaving} className="gap-1 h-7 text-xs">
+                      <RotateCcw className="h-3 w-3" /> Discard
+                    </Button>
+                    <Button size="sm" onClick={commitSyncChanges} disabled={syncSaving} className="gap-1 h-7 text-xs">
+                      {syncSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save Changes
+                    </Button>
+                  </>
+                ) : hasOrderDiscrepancies ? (
+                  <Badge variant="secondary" className="gap-1 text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    <AlertTriangle className="h-3 w-3" /> {orderComparison.discrepancies.length} mismatch{orderComparison.discrepancies.length > 1 ? 'es' : ''}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="gap-1 text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                    <ShieldCheck className="h-3 w-3" /> Fields match
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 space-y-1.5">
+            {ORDER_SYNC_FIELDS.map(field => (
+              <SyncFieldRow
+                key={field}
+                label={ORDER_SYNC_LABELS[field]}
+                original={originals[field]}
+                current={syncFields[field]}
+                onChange={(next) => setSyncFields(prev => ({ ...prev, [field]: next }))}
+                formatFn={field === 'studyDate' ? (v) => {
+                  if (!v) return '';
+                  try { return new Date(v).toLocaleDateString(); } catch { return v; }
+                } : undefined}
+              />
+            ))}
+            {/* Facility (display-only — different concepts in PACS vs RIS) */}
+            <div className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs ${
+              orderComparison.pacsFacility && orderComparison.risFacility &&
+              orderComparison.pacsFacility.toLowerCase() !== orderComparison.risFacility.toLowerCase()
+                ? 'border-amber-500/40 bg-amber-500/5'
+                : orderComparison.pacsFacility && orderComparison.risFacility
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  : 'border-border'
+            }`}>
+              <span className="w-20 shrink-0 font-medium text-muted-foreground">Facility</span>
+              <div className="flex-1 min-w-0 flex items-center gap-1">
+                <Badge variant="outline" className="shrink-0 text-[9px] h-4 px-1 text-blue-500 border-blue-500/30">PACS</Badge>
+                <span className={`truncate ${!orderComparison.pacsFacility ? 'text-muted-foreground italic' : ''}`}>
+                  {orderComparison.pacsFacility || '—'}
+                </span>
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                {orderComparison.pacsFacility && orderComparison.risFacility &&
+                 orderComparison.pacsFacility.toLowerCase() === orderComparison.risFacility.toLowerCase()
+                  ? <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  : orderComparison.pacsFacility && orderComparison.risFacility
+                    ? <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    : null}
+              </div>
+              <div className="flex-1 min-w-0 flex items-center gap-1 justify-end">
+                <span className={`truncate ${!orderComparison.risFacility ? 'text-muted-foreground italic' : ''}`}>
+                  {orderComparison.risFacility || '—'}
+                </span>
+                <Badge variant="outline" className="shrink-0 text-[9px] h-4 px-1 text-purple-500 border-purple-500/30">RIS</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Merge Actions */}
+      {orders.length >= 2 && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1 h-7 text-xs"
+            onClick={() => setMergeOrderOpen(true)}>
+            <Merge className="h-3 w-3" /> Merge Orders
+          </Button>
+        </div>
+      )}
+
       {orders.map((order) => {
         const isExpanded = expandedOrders.has(order.orderId);
         const isEditingThis = editingOrderId === order.orderId;
@@ -212,6 +382,9 @@ export function OrdersProceduresTab({ data, onDataChange }: Props) {
                   <Badge variant={orderStatusVariant(order.status)} className="ml-2">{order.status || 'Unknown'}</Badge>
                   {order.accessionNumber && (
                     <span className="text-xs font-mono text-muted-foreground ml-2">ACC: {order.accessionNumber}</span>
+                  )}
+                  {order.siteName && (
+                    <Badge variant="outline" className="ml-2 text-[10px]">{order.siteName}</Badge>
                   )}
                 </CardTitle>
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -271,9 +444,24 @@ export function OrdersProceduresTab({ data, onDataChange }: Props) {
                 {/* Procedures */}
                 {orderProcs.length > 0 && (
                   <div className="pl-6 space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Procedures ({orderProcs.length})
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Procedures ({orderProcs.length})
+                        </p>
+                        {orderProcs.length >= 2 && (
+                          <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Multiple procedures
+                          </Badge>
+                        )}
+                      </div>
+                      {orderProcs.length >= 2 && (
+                        <Button variant="outline" size="sm" className="gap-1 h-6 text-[10px]"
+                          onClick={() => setMergeProcContext({ orderId: order.orderId, target: orderProcs[0], source: orderProcs[1] })}>
+                          <Merge className="h-2.5 w-2.5" /> Merge Procedures
+                        </Button>
+                      )}
+                    </div>
                     {orderProcs.map((proc) => {
                       const procExpanded = expandedProcs.has(proc.procedureId);
                       const isEditingProc = editingProcId === proc.procedureId;
@@ -396,6 +584,32 @@ export function OrdersProceduresTab({ data, onDataChange }: Props) {
           </Card>
         );
       })}
+
+      {/* Merge Order Dialog */}
+      {mergeOrderOpen && orders.length >= 2 && (
+        <MergeOrderDialog
+          open={mergeOrderOpen}
+          onOpenChange={setMergeOrderOpen}
+          studyId={study.id}
+          orders={orders}
+          initialTarget={orders[0]}
+          initialSource={orders[1]}
+          onDataChange={onDataChange}
+        />
+      )}
+
+      {/* Merge Procedure Dialog */}
+      {mergeProcContext && (
+        <MergeProcedureDialog
+          open={true}
+          onOpenChange={(open) => !open && setMergeProcContext(null)}
+          studyId={study.id}
+          procedures={procsByOrder.get(mergeProcContext.orderId) ?? []}
+          initialTarget={mergeProcContext.target}
+          initialSource={mergeProcContext.source}
+          onDataChange={onDataChange}
+        />
+      )}
     </div>
   );
 }

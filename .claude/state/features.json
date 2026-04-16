@@ -109,8 +109,8 @@
     {
       "id": "route-queue-management",
       "name": "PACS Route Queue Management",
-      "status": "planning",
-      "details": "PLANNING: Admin UI to view/manage pacs.route_queue (pending), route_errors (failed), route_history (completed), queue_router_history (stats). DB has stored functions for queue insert/delete/update/retry. Also route_rules for automatic routing configuration."
+      "status": "done",
+      "details": "COMPLETE: Backend RouteQueueModels (4 domain classes), RouteQueueRequests (4 DTOs), 12 new methods on PacsRoutingRepository (queue/errors/history CRUD, retry, summary, queue study/series via stored functions), RouteQueueController (10 endpoints). Frontend: route-queue page with panel layout (Summary/Pending/Errors/History), filter bars, pagination, retry/clear/delete actions, confirmation dialogs. Nav sidebar updated. Both projects build verified."
     }
   ]
 }

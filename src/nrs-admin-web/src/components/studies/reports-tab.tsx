@@ -9,12 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import {
   FileText, ChevronDown, ChevronRight, User, Calendar, AlertTriangle,
-  Pencil, Save, X, Loader2, Plus, RotateCcw,
+  Pencil, Save, X, Loader2, Plus, RotateCcw, Settings2, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   UnifiedStudyDetail, RisReport, UpdateRisReportRequest, CreateRisReportRequest,
+  StandardReport,
 } from '@/lib/types';
 import { studyApi } from '@/lib/api';
 
@@ -53,6 +57,14 @@ export function ReportsTab({ data, onDataChange }: Props) {
   const [creatingForProc, setCreatingForProc] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState<CreateRisReportRequest>({ procedureId: 0, reportType: 'Final' });
 
+  // Standard reports (precanned text)
+  const [standardReports, setStandardReports] = useState<StandardReport[]>([]);
+  const [standardReportsLoaded, setStandardReportsLoaded] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateText, setNewTemplateText] = useState('');
+  const [templateSaving, setTemplateSaving] = useState(false);
+
   function toggleReport(id: number) {
     setExpandedReports(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
@@ -77,9 +89,14 @@ export function ReportsTab({ data, onDataChange }: Props) {
     finally { setSaving(false); }
   }
 
-  function startCreate(procedureId: number) {
+  async function startCreate(procedureId: number) {
     setCreateForm({ procedureId, reportType: 'Final', status: 'Draft', reportText: '', reportFormat: 'text', notes: '' });
     setCreatingForProc(procedureId);
+    if (!standardReportsLoaded) {
+      const res = await studyApi.getStandardReports();
+      if (res.success && res.data) setStandardReports(res.data);
+      setStandardReportsLoaded(true);
+    }
   }
 
   async function saveCreate() {
@@ -90,6 +107,37 @@ export function ReportsTab({ data, onDataChange }: Props) {
       else { toast.error(res.message || 'Create failed'); }
     } catch { toast.error('Failed to create report'); }
     finally { setSaving(false); }
+  }
+
+  async function loadStandardReports() {
+    const res = await studyApi.getStandardReports();
+    if (res.success && res.data) setStandardReports(res.data);
+    setStandardReportsLoaded(true);
+  }
+
+  async function handleCreateTemplate() {
+    if (!newTemplateName.trim()) return;
+    setTemplateSaving(true);
+    try {
+      const res = await studyApi.createStandardReport(newTemplateName, newTemplateText);
+      if (res.success) {
+        toast.success('Standard report created');
+        setNewTemplateName('');
+        setNewTemplateText('');
+        await loadStandardReports();
+      } else { toast.error(res.message || 'Failed to create'); }
+    } catch { toast.error('Failed to create standard report'); }
+    finally { setTemplateSaving(false); }
+  }
+
+  async function handleDeleteTemplate(id: number) {
+    try {
+      const res = await studyApi.deleteStandardReport(id);
+      if (res.success) {
+        toast.success('Standard report deleted');
+        await loadStandardReports();
+      } else { toast.error(res.message || 'Failed to delete'); }
+    } catch { toast.error('Failed to delete'); }
   }
 
   // Group reports by procedure
@@ -168,6 +216,27 @@ export function ReportsTab({ data, onDataChange }: Props) {
                       </Select>
                     </div>
                   </div>
+                  {/* Standard report template selector */}
+                  {standardReports.length > 0 && (
+                    <div>
+                      <Label className="text-[11px]">Use Standard Report</Label>
+                      <Select value="" onValueChange={v => {
+                        const sr = standardReports.find(r => r.standardReportId.toString() === v);
+                        if (sr) setCreateForm({ ...createForm, reportText: sr.reportText });
+                      }}>
+                        <SelectTrigger className="h-7 text-xs mt-0.5">
+                          <SelectValue placeholder="Select a template to pre-fill..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {standardReports.map(sr => (
+                            <SelectItem key={sr.standardReportId} value={sr.standardReportId.toString()} className="text-xs">
+                              {sr.shortReportName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-[11px]">Report Text</Label>
                     <textarea className="w-full min-h-[100px] rounded-md border border-input bg-background px-2 py-1.5 text-xs mt-0.5 ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
@@ -316,6 +385,69 @@ export function ReportsTab({ data, onDataChange }: Props) {
           </div>
         );
       })}
+
+      {/* Manage Standard Reports button */}
+      <div className="flex justify-end pt-2">
+        <Button variant="outline" size="sm" className="gap-1 h-7 text-xs"
+          onClick={() => { setManageOpen(true); if (!standardReportsLoaded) loadStandardReports(); }}>
+          <Settings2 className="h-3 w-3" /> Manage Standard Reports
+        </Button>
+      </div>
+
+      {/* Standard Reports Management Dialog */}
+      <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Standard Reports</DialogTitle>
+            <DialogDescription>
+              Manage precanned report templates. Select these when creating new reports to pre-fill the text.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Existing templates */}
+            {standardReports.length > 0 ? (
+              <div className="space-y-2">
+                {standardReports.map(sr => (
+                  <div key={sr.standardReportId} className="rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium">{sr.shortReportName}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteTemplate(sr.standardReportId)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-3">{sr.reportText}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">No standard reports yet.</p>
+            )}
+
+            {/* Add new template */}
+            <div className="rounded-md border border-dashed p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add New Template</p>
+              <Input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)}
+                placeholder="Template name (e.g. 'Normal Study')" className="h-8 text-xs" />
+              <textarea className="w-full min-h-[80px] rounded-md border border-input bg-background px-2 py-1.5 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
+                value={newTemplateText} onChange={e => setNewTemplateText(e.target.value)}
+                placeholder="Report text..." />
+              <div className="flex justify-end">
+                <Button size="sm" onClick={handleCreateTemplate} disabled={templateSaving || !newTemplateName.trim()}
+                  className="gap-1 h-7 text-xs">
+                  {templateSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Add Template
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,9 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SyncFieldRow, SyncFieldState } from './sync-field-row';
-import { User, AlertTriangle, ShieldCheck, Users, Save, X, Loader2, RotateCcw, Pencil } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { User, AlertTriangle, ShieldCheck, Users, Save, X, Loader2, RotateCcw, Pencil, FolderOpen, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import { UnifiedStudyDetail, UpdateRisPatientDetailsRequest } from '@/lib/types';
+import { UnifiedStudyDetail, UpdateRisPatientDetailsRequest, PatientGroup, PatientDeletionPreview } from '@/lib/types';
 import { studyApi } from '@/lib/api';
 
 function fmtDate(d?: string | null) {
@@ -169,6 +174,9 @@ export function PatientComparisonTab({ data, onDataChange, onOpenMergeDialog }: 
         </div>
       </div>
 
+      {/* Patient Group */}
+      <PatientGroupCard studyId={study.id} currentGroup={study.patientGroup} onDataChange={onDataChange} />
+
       {/* Sync Fields */}
       {hasRisData && (
         <Card className="shadow-none">
@@ -205,6 +213,11 @@ export function PatientComparisonTab({ data, onDataChange, onOpenMergeDialog }: 
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Danger Zone — Delete RIS Patient */}
+      {hasRisData && risPatient && (
+        <PatientDangerZone studyId={study.id} onDataChange={onDataChange} />
       )}
     </div>
   );
@@ -350,6 +363,203 @@ function RisPatientDetailsCard({ studyId, risPatient, onDataChange }: {
             return <Row key={f.key} label={f.label} value={val || undefined} />;
           })}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============== Patient Group Card ==============
+
+function PatientGroupCard({
+  studyId,
+  currentGroup,
+  onDataChange,
+}: {
+  studyId: number;
+  currentGroup?: string | null;
+  onDataChange: (data: UnifiedStudyDetail) => void;
+}) {
+  const [groups, setGroups] = useState<PatientGroup[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function loadGroups() {
+    if (loaded) return;
+    const res = await studyApi.getPatientGroups();
+    if (res.success && res.data) setGroups(res.data);
+    setLoaded(true);
+  }
+
+  async function handleChange(newGroup: string) {
+    if (newGroup === (currentGroup || '')) return;
+    setSaving(true);
+    try {
+      const res = await studyApi.updatePatientGroup(studyId, newGroup);
+      if (res.success) {
+        toast.success(`Patient moved to ${newGroup}`);
+        // Refresh the full study data
+        const refreshed = await studyApi.getUnified(studyId);
+        if (refreshed.success && refreshed.data) onDataChange(refreshed.data);
+      } else {
+        toast.error(res.message || 'Failed to update patient group');
+      }
+    } catch {
+      toast.error('Failed to update patient group');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader className="pb-1 pt-3 px-4">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <FolderOpen className="h-3.5 w-3.5" />
+          Patient Group
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3">
+        <div className="flex items-center gap-3">
+          <Select
+            value={currentGroup || ''}
+            onValueChange={handleChange}
+            disabled={saving}
+            onOpenChange={(open) => open && loadGroups()}
+          >
+            <SelectTrigger className="h-8 text-xs w-56">
+              <SelectValue placeholder={currentGroup || 'No group assigned'} />
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map(g => (
+                <SelectItem key={g.patientGroupId} value={g.name}>
+                  {g.name}
+                  {g.isDefault && <span className="text-muted-foreground ml-1">(default)</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          {currentGroup && (
+            <span className="text-[10px] text-muted-foreground">
+              Currently: {currentGroup}
+            </span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============== Patient Danger Zone ==============
+
+function PatientDangerZone({
+  studyId,
+  onDataChange,
+}: {
+  studyId: number;
+  onDataChange: (data: UnifiedStudyDetail) => void;
+}) {
+  const [preview, setPreview] = useState<PatientDeletionPreview | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function checkReferences() {
+    setLoading(true);
+    try {
+      const res = await studyApi.getPatientDeletionPreview(studyId);
+      if (res.success && res.data) setPreview(res.data);
+      else toast.error(res.message || 'Failed to check references');
+    } catch { toast.error('Failed to check references'); }
+    finally { setLoading(false); }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const clearInsurance = preview ? preview.insuranceReferences > 0 : false;
+      const res = await studyApi.deleteRisPatient(studyId, clearInsurance);
+      if (res.success) {
+        toast.success('RIS patient deleted');
+        setConfirmOpen(false);
+        setPreview(null);
+        const refreshed = await studyApi.getUnified(studyId);
+        if (refreshed.success && refreshed.data) onDataChange(refreshed.data);
+      } else {
+        toast.error(res.message || 'Delete failed');
+      }
+    } catch { toast.error('Delete failed'); }
+    finally { setDeleting(false); }
+  }
+
+  return (
+    <Card className="shadow-none border-destructive/30">
+      <CardHeader className="pb-1 pt-3 px-4">
+        <CardTitle className="flex items-center gap-2 text-sm text-destructive">
+          <Shield className="h-3.5 w-3.5" />
+          Danger Zone
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Delete this patient from RIS, including all orders, billing accounts, and demographic data.
+          This cannot be undone.
+        </p>
+
+        {!preview ? (
+          <Button variant="outline" size="sm" className="gap-1 h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={checkReferences} disabled={loading}>
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+            Check References
+          </Button>
+        ) : (
+          <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">Orders:</span> <span className="font-medium">{preview.orderCount}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Billing Accounts:</span> <span className="font-medium">{preview.billingAccountCount}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Documents:</span> <span className="font-medium">{preview.documentCount}</span></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Insurance Refs:</span>
+                <span className={`font-medium ${preview.insuranceReferences > 0 ? 'text-destructive' : ''}`}>
+                  {preview.insuranceReferences}
+                </span>
+              </div>
+            </div>
+
+            {preview.insuranceReferences > 0 && (
+              <p className="text-[10px] text-amber-600">
+                <AlertTriangle className="h-3 w-3 inline mr-1" />
+                Insurance references will be cleared automatically during deletion.
+              </p>
+            )}
+
+            <Button variant="destructive" size="sm" className="gap-1 h-7 text-xs"
+              onClick={() => setConfirmOpen(true)}>
+              <Trash2 className="h-3 w-3" /> Delete RIS Patient
+            </Button>
+          </div>
+        )}
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete RIS Patient</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the RIS patient record ({preview?.patientId} / {preview?.siteCode}),
+                including {preview?.orderCount} order(s), {preview?.billingAccountCount} billing account(s),
+                and all demographic data. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete Permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
