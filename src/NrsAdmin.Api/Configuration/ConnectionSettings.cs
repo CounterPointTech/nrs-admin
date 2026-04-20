@@ -5,6 +5,17 @@ public class ConnectionSettings
     public DatabaseConnectionSettings Database { get; set; } = new();
     public MappingFileConnectionSettings MappingFile { get; set; } = new();
     public ReportTemplateConnectionSettings ReportTemplate { get; set; } = new();
+    public NovaradServerConnectionSettings NovaradServer { get; set; } = new();
+}
+
+/// <summary>
+/// Points to the Windows host where NovaPACS / NovaRIS services run.
+/// Can differ from the database host (the DB is sometimes on a separate server).
+/// Empty/null = local machine (the NRS Admin API host).
+/// </summary>
+public class NovaradServerConnectionSettings
+{
+    public string Host { get; set; } = string.Empty;
 }
 
 public class DatabaseConnectionSettings

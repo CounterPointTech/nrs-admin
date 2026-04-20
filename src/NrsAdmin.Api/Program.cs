@@ -42,6 +42,8 @@ try
     builder.Services.Configure<MappingFileSettings>(builder.Configuration.GetSection("MappingFile"));
     builder.Services.Configure<LdapSettings>(builder.Configuration.GetSection("Ldap"));
     builder.Services.Configure<ReportTemplateSettings>(builder.Configuration.GetSection("ReportTemplate"));
+    builder.Services.Configure<ExternalToolsSettings>(builder.Configuration.GetSection("ExternalTools"));
+    builder.Services.Configure<ServicesMonitorSettings>(builder.Configuration.GetSection("ServicesMonitor"));
 
     // Authentication
     var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
@@ -154,6 +156,8 @@ try
     builder.Services.AddScoped<AuthService>();
     builder.Services.AddScoped<MappingFileService>();
     builder.Services.AddScoped<ReportTemplateService>();
+    builder.Services.AddScoped<ExternalToolsService>();
+    builder.Services.AddSingleton<ServicesMonitorService>();
 
     var app = builder.Build();
 

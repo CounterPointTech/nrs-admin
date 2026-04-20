@@ -29,6 +29,11 @@ export interface ConnectionSettingsResponse {
   database: DatabaseSettingsResponse;
   mappingFile: MappingFileSettingsResponse;
   reportTemplate: ReportTemplateSettingsResponse;
+  novaradServer: NovaradServerSettingsResponse;
+}
+
+export interface NovaradServerSettingsResponse {
+  host: string;
 }
 
 export interface DatabaseSettingsResponse {
@@ -65,6 +70,9 @@ export interface SaveConnectionRequest {
   reportTemplate?: {
     directory: string;
     backupDirectory: string;
+  };
+  novaradServer?: {
+    host: string;
   };
 }
 
@@ -1053,3 +1061,76 @@ export interface QueueSeriesRequest {
   priority?: number;
   overwriteExisting?: boolean;
 }
+
+// ============== External Tools ==============
+
+export type ExternalToolType = 'Url' | 'Executable' | 'Command' | 'FileOrFolder';
+
+export type ExternalToolShell = 'Default' | 'Cmd' | 'PowerShell' | 'PwshCore';
+
+export interface ExternalTool {
+  id: string;
+  name: string;
+  description?: string;
+  type: ExternalToolType;
+  target: string;
+  arguments?: string;
+  workingDirectory?: string;
+  iconName?: string;
+  category?: string;
+  sortOrder: number;
+  shell: ExternalToolShell;
+  runAsAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExternalToolRequest {
+  name: string;
+  description?: string;
+  type: ExternalToolType;
+  target: string;
+  arguments?: string;
+  workingDirectory?: string;
+  iconName?: string;
+  category?: string;
+  sortOrder: number;
+  shell: ExternalToolShell;
+  runAsAdmin: boolean;
+}
+
+export type UpdateExternalToolRequest = CreateExternalToolRequest;
+
+export interface ReorderExternalToolsRequest {
+  items: { id: string; sortOrder: number }[];
+}
+
+// ============== Services Monitor ==============
+
+export type ServiceStatus =
+  | 'Running'
+  | 'Stopped'
+  | 'StartPending'
+  | 'StopPending'
+  | 'Paused'
+  | 'PausePending'
+  | 'ContinuePending'
+  | 'Unknown';
+
+export interface ServiceInfo {
+  name: string;
+  displayName: string;
+  status: ServiceStatus | string;
+  canStop: boolean;
+  canPauseAndContinue: boolean;
+}
+
+export interface ServicesSnapshot {
+  host: string;
+  remote: boolean;
+  checkedAt: string;
+  services: ServiceInfo[];
+  error?: string;
+}
+
+export type ServiceAction = 'start' | 'stop' | 'restart';

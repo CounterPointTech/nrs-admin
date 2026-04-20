@@ -17,6 +17,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.*" />
     <PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.*" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.*" />
   </ItemGroup>
 
 </Project>

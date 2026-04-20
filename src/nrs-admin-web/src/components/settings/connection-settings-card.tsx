@@ -23,6 +23,7 @@ import {
   FolderOpen,
   ChevronDown,
   ChevronUp,
+  Server,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +60,9 @@ export function ConnectionSettingsCard({ defaultExpanded = false }: ConnectionSe
   const [templateDir, setTemplateDir] = useState('');
   const [templateBackupDir, setTemplateBackupDir] = useState('');
 
+  // Novarad server (host where PACS/RIS Windows services run)
+  const [novaradHost, setNovaradHost] = useState('');
+
   // Test states
   const [testingDb, setTestingDb] = useState(false);
   const [dbTestResult, setDbTestResult] = useState<{
@@ -91,6 +95,7 @@ export function ConnectionSettingsCard({ defaultExpanded = false }: ConnectionSe
       setBackupDir(s.mappingFile.backupDirectory || '');
       setTemplateDir(s.reportTemplate?.directory || '');
       setTemplateBackupDir(s.reportTemplate?.backupDirectory || '');
+      setNovaradHost(s.novaradServer?.host || '');
     }
     setLoading(false);
   }, []);
@@ -175,6 +180,9 @@ export function ConnectionSettingsCard({ defaultExpanded = false }: ConnectionSe
       reportTemplate: {
         directory: templateDir.trim(),
         backupDirectory: templateBackupDir.trim(),
+      },
+      novaradServer: {
+        host: novaradHost.trim(),
       },
     });
 
@@ -358,6 +366,34 @@ export function ConnectionSettingsCard({ defaultExpanded = false }: ConnectionSe
                     <Input id="conn-template-backup" value={templateBackupDir} onChange={(e) => setTemplateBackupDir(e.target.value)} placeholder="Auto-generated" className="font-mono text-xs h-8 flex-1" />
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { setBrowseTarget('templateBackupDir'); setBrowseType('directory'); setBrowseOpen(true); }}><FolderOpen className="h-3.5 w-3.5" /></Button>
                   </div>
+                </div>
+              </div>
+
+              <hr className="border-border/50" />
+
+              {/* Novarad Server */}
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <Server className="h-3.5 w-3.5 text-primary" />
+                  Novarad Server
+                </h4>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="conn-novarad-host" className="text-xs">Host</Label>
+                  <Input
+                    id="conn-novarad-host"
+                    value={novaradHost}
+                    onChange={(e) => setNovaradHost(e.target.value)}
+                    placeholder="Leave blank to use local machine"
+                    className="h-8 text-sm font-mono"
+                  />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Windows host where NovaPACS / NovaRIS services are running. Used by the
+                    dashboard Services card to query service status. Can differ from the database
+                    host when the DB lives on a separate server. Leave blank to query the local
+                    NRS Admin API machine. Accepts hostname, FQDN, or IP — remote queries require
+                    network access and admin credentials on the target.
+                  </p>
                 </div>
               </div>
 

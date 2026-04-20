@@ -14,6 +14,12 @@ public class ConnectionSettingsResponse
     public DatabaseSettingsResponse Database { get; set; } = new();
     public MappingFileSettingsResponse MappingFile { get; set; } = new();
     public ReportTemplateSettingsResponse ReportTemplate { get; set; } = new();
+    public NovaradServerSettingsResponse NovaradServer { get; set; } = new();
+}
+
+public class NovaradServerSettingsResponse
+{
+    public string Host { get; set; } = string.Empty;
 }
 
 public class DatabaseSettingsResponse

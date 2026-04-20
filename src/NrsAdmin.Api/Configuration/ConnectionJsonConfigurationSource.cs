@@ -63,6 +63,14 @@ public class ConnectionJsonConfigurationProvider : ConfigurationProvider
                 if (!string.IsNullOrEmpty(rt.BackupDirectory))
                     Data["ReportTemplate:BackupDirectory"] = rt.BackupDirectory;
             }
+
+            if (settings.NovaradServer is { Host: { Length: > 0 } host })
+            {
+                // Feed the Novarad server host into ServicesMonitor so a single setting
+                // drives both "where the services live" and any future features that
+                // need to reach the PACS/RIS host.
+                Data["ServicesMonitor:Host"] = host;
+            }
         }
         catch (Exception ex)
         {

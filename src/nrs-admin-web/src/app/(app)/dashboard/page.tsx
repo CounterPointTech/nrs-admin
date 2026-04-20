@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { dashboardApi } from '@/lib/api';
 import { DashboardStats, getStudyStatusLabel } from '@/lib/types';
+import { ServicesCard } from '@/components/dashboard/services-card';
 import {
   LayoutDashboard,
   ArrowRight,
@@ -21,7 +23,6 @@ import {
   Loader2,
   Images,
   Users2,
-  Server,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -100,7 +101,7 @@ export default function DashboardPage() {
       ) : stats ? (
         <>
           {/* Stat Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card className="animate-fade-in">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Studies</CardTitle>
@@ -159,152 +160,136 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-in" style={{ animationDelay: '250ms' }}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Services</CardTitle>
-                <Server className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${stats.activeServices > 0 ? 'bg-green-500 status-pulse' : 'bg-destructive status-pulse'}`} />
-                  <span className="text-2xl font-bold">{stats.activeServices}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Novarad services</p>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Data Tables Row */}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Modality Breakdown */}
-            <Card className="animate-fade-in" style={{ animationDelay: '250ms' }}>
-              <CardHeader>
-                <CardTitle className="text-base">By Modality</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {stats.modalityBreakdown.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-20">Modality</TableHead>
-                        <TableHead className="text-right">Studies</TableHead>
-                        <TableHead className="text-right">Series</TableHead>
-                        <TableHead className="text-right">Images</TableHead>
-                        <TableHead className="text-right">Patients</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stats.modalityBreakdown.map((m) => (
-                        <TableRow key={m.modality}>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">{m.modality}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {formatNumber(m.studyCount)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-                            {formatNumber(m.seriesCount)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {formatNumber(m.imageCount)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-                            {formatNumber(m.patientCount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                    No modality data available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Services */}
+          <ServicesCard />
 
-            {/* Facility Breakdown */}
-            <Card className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-              <CardHeader>
-                <CardTitle className="text-base">By Facility</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {stats.facilityBreakdown.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Facility</TableHead>
-                        <TableHead className="text-right">Studies</TableHead>
-                        <TableHead className="text-right">Patients</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stats.facilityBreakdown.map((f) => (
-                        <TableRow key={f.facilityId}>
-                          <TableCell className="font-medium text-sm">{f.facilityName}</TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
-                            {formatNumber(f.studyCount)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-                            {formatNumber(f.patientCount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                    No facility data available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Studies */}
-          <Card className="animate-fade-in" style={{ animationDelay: '350ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Recent Studies</CardTitle>
-              <Link href="/studies">
-                <Button variant="ghost" size="sm" className="text-xs">
-                  View all <ArrowRight className="h-3 w-3 ml-1" />
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {stats.recentStudies.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left font-medium py-2 pr-4">Patient</th>
-                        <th className="text-left font-medium py-2 pr-4">MRN</th>
-                        <th className="text-left font-medium py-2 pr-4">Modality</th>
-                        <th className="text-left font-medium py-2 pr-4">Status</th>
-                        <th className="text-left font-medium py-2 pr-4">Study Date</th>
-                        <th className="text-left font-medium py-2">Facility</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.recentStudies.map((study) => (
-                        <tr key={study.id}
-                          className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => window.location.href = `/studies/${study.id}`}>
-                          <td className="py-2 pr-4 font-medium">{study.patientName}</td>
-                          <td className="py-2 pr-4 text-muted-foreground font-mono text-xs">{study.patientId}</td>
-                          <td className="py-2 pr-4"><Badge variant="outline">{study.modality}</Badge></td>
-                          <td className="py-2 pr-4"><Badge variant="secondary">{getStudyStatusLabel(study.status)}</Badge></td>
-                          <td className="py-2 pr-4 text-muted-foreground">{formatDateTime(study.studyDate)}</td>
-                          <td className="py-2 text-muted-foreground">{study.facilityName || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* Unified Study Activity — tabs for Recent / Modality / Facility */}
+          <Card className="animate-fade-in" style={{ animationDelay: '250ms' }}>
+            <Tabs defaultValue="recent" className="gap-0">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">Study Activity</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Recent activity plus breakdowns by modality and facility
+                  </p>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No recent studies</p>
-              )}
-            </CardContent>
+                <TabsList>
+                  <TabsTrigger value="recent">Recent</TabsTrigger>
+                  <TabsTrigger value="modality">By Modality</TabsTrigger>
+                  <TabsTrigger value="facility">By Facility</TabsTrigger>
+                </TabsList>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <TabsContent value="recent" className="m-0">
+                  {stats.recentStudies.length > 0 ? (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border text-muted-foreground">
+                              <th className="text-left font-medium py-2 pr-4">Patient</th>
+                              <th className="text-left font-medium py-2 pr-4">MRN</th>
+                              <th className="text-left font-medium py-2 pr-4">Modality</th>
+                              <th className="text-left font-medium py-2 pr-4">Status</th>
+                              <th className="text-left font-medium py-2 pr-4">Study Date</th>
+                              <th className="text-left font-medium py-2">Facility</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stats.recentStudies.map((study) => (
+                              <tr
+                                key={study.id}
+                                className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                                onClick={() => (window.location.href = `/studies/${study.id}`)}
+                              >
+                                <td className="py-2 pr-4 font-medium">{study.patientName}</td>
+                                <td className="py-2 pr-4 text-muted-foreground font-mono text-xs">{study.patientId}</td>
+                                <td className="py-2 pr-4"><Badge variant="outline">{study.modality}</Badge></td>
+                                <td className="py-2 pr-4"><Badge variant="secondary">{getStudyStatusLabel(study.status)}</Badge></td>
+                                <td className="py-2 pr-4 text-muted-foreground">{formatDateTime(study.studyDate)}</td>
+                                <td className="py-2 text-muted-foreground">{study.facilityName || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="flex justify-end pt-3">
+                        <Link href="/studies">
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View all studies <ArrowRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No recent studies</p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="modality" className="m-0">
+                  {stats.modalityBreakdown.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-20">Modality</TableHead>
+                          <TableHead className="text-right">Studies</TableHead>
+                          <TableHead className="text-right">Series</TableHead>
+                          <TableHead className="text-right">Images</TableHead>
+                          <TableHead className="text-right">Patients</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stats.modalityBreakdown.map((m) => (
+                          <TableRow key={m.modality}>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-xs">{m.modality}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-sm">{formatNumber(m.studyCount)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm text-muted-foreground">{formatNumber(m.seriesCount)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm">{formatNumber(m.imageCount)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm text-muted-foreground">{formatNumber(m.patientCount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                      No modality data available
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="facility" className="m-0">
+                  {stats.facilityBreakdown.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Facility</TableHead>
+                          <TableHead className="text-right">Studies</TableHead>
+                          <TableHead className="text-right">Patients</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stats.facilityBreakdown.map((f) => (
+                          <TableRow key={f.facilityId}>
+                            <TableCell className="font-medium text-sm">{f.facilityName}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm">{formatNumber(f.studyCount)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm text-muted-foreground">{formatNumber(f.patientCount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                      No facility data available
+                    </div>
+                  )}
+                </TabsContent>
+              </CardContent>
+            </Tabs>
           </Card>
         </>
       ) : null}

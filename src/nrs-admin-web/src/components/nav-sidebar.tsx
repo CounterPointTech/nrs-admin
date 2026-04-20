@@ -23,12 +23,12 @@ import {
   Stethoscope,
   Receipt,
   FileText,
-  ClipboardList,
   Wrench,
+  Rocket,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
@@ -36,40 +36,106 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/lib/auth-context';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 
-const dashboardNavItems = [
+// ---------- Nav tree definition ----------
+
+interface NavNode {
+  title: string;
+  icon: LucideIcon;
+  /** Leaf nodes have an href. Branch nodes have children. Either / or. */
+  href?: string;
+  children?: NavNode[];
+  /** Whether a branch defaults to expanded on first load (before localStorage override). */
+  defaultExpanded?: boolean;
+}
+
+const NAV_TREE: NavNode[] = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  {
+    title: 'PACS',
+    icon: HardDrive,
+    children: [
+      { title: 'Studies', href: '/studies', icon: FileSearch },
+      { title: 'Routing', href: '/pacs/routing', icon: Radio },
+      { title: 'Novarad Settings', href: '/settings', icon: Settings },
+    ],
+  },
+  {
+    title: 'RIS',
+    icon: Stethoscope,
+    children: [
+      {
+        title: 'Modalities',
+        icon: Monitor,
+        children: [
+          { title: 'List', href: '/modalities', icon: Monitor },
+          { title: 'Mapping Editor', href: '/modalities/mapping', icon: FileCode2 },
+          { title: 'AE Monitoring', href: '/modalities/monitoring', icon: Activity },
+        ],
+      },
+      {
+        title: 'Reports',
+        icon: FileText,
+        children: [
+          { title: 'Templates', href: '/reports/templates', icon: FileText },
+        ],
+      },
+      {
+        title: 'Billing',
+        icon: Receipt,
+        children: [
+          { title: 'CPT Codes', href: '/billing/cpt-codes', icon: DollarSign },
+          { title: 'ICD Codes', href: '/billing/icd-codes', icon: Stethoscope },
+        ],
+      },
+      { title: 'Novarad Settings', href: '/settings', icon: Settings },
+    ],
+  },
+  {
+    title: 'External Tools',
+    icon: Rocket,
+    children: [
+      { title: 'My Tools', href: '/tools', icon: Rocket },
+    ],
+  },
+  {
+    title: 'System',
+    icon: Wrench,
+    children: [
+      { title: 'Configuration', href: '/configuration', icon: Wrench },
+    ],
+  },
 ];
 
-const pacsNavItems = [
-  { title: 'Study Editor', href: '/studies', icon: FileSearch },
-  { title: 'Routing', href: '/pacs/routing', icon: Radio },
-];
+// ---------- Helpers ----------
 
-const reportsNavItems = [
-  { title: 'Templates', href: '/reports/templates', icon: FileText },
-];
+function flattenLeaves(nodes: NavNode[]): NavNode[] {
+  const out: NavNode[] = [];
+  const walk = (ns: NavNode[]) => {
+    for (const n of ns) {
+      if (n.children) walk(n.children);
+      else if (n.href) out.push(n);
+    }
+  };
+  walk(nodes);
+  return out;
+}
 
-const billingNavItems = [
-  { title: 'CPT Codes', href: '/billing/cpt-codes', icon: DollarSign },
-  { title: 'ICD Codes', href: '/billing/icd-codes', icon: Stethoscope },
-];
+function isRouteActive(pathname: string, href: string | undefined): boolean {
+  if (!href) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
-const risModalityItems = [
-  { title: 'Modality List', href: '/modalities', icon: Monitor },
-  { title: 'Mapping Editor', href: '/modalities/mapping', icon: FileCode2 },
-  { title: 'AE Monitoring', href: '/modalities/monitoring', icon: Activity },
-];
+function branchContainsActive(node: NavNode, pathname: string): boolean {
+  if (!node.children) return false;
+  return node.children.some((child) =>
+    child.href ? isRouteActive(pathname, child.href) : branchContainsActive(child, pathname)
+  );
+}
 
-const novaradNavItems = [
-  { title: 'Novarad Settings', href: '/settings', icon: Settings },
-];
-
-const systemNavItems = [
-  { title: 'Configuration', href: '/configuration', icon: Wrench },
-];
+// ---------- Components ----------
 
 interface NavSidebarProps {
   className?: string;
@@ -79,69 +145,48 @@ export function NavSidebar({ className }: NavSidebarProps) {
   const pathname = usePathname();
   const { user, logout, connectionReady } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [pacsExpanded, setPacsExpanded] = useState(true);
-  const [modalitiesExpanded, setModalitiesExpanded] = useState(true);
-const [billingExpanded, setBillingExpanded] = useState(true);
-  const [reportsExpanded, setReportsExpanded] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem('nav-tree-expanded');
+      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  });
   const { theme, setTheme } = useTheme();
 
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+  const toggleExpanded = (path: string) => {
+    setExpanded((prev) => {
+      const wasOpen = isExpanded(path, prev);
+      const next = { ...prev, [path]: !wasOpen };
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('nav-tree-expanded', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+      }
+      return next;
+    });
   };
 
-  const NavItem = ({
-    href,
-    icon: Icon,
-    title,
-  }: {
-    href: string;
-    icon: React.ElementType;
-    title: string;
-  }) => {
-    const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isExpanded = (path: string, state: Record<string, boolean> = expanded): boolean => {
+    // User's explicit toggle always wins — even against auto-expand.
+    if (path in state) return state[path];
 
-    const linkContent = (
-      <Link
-        href={href}
-        className={cn(
-          'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-          isActive
-            ? 'bg-primary/10 text-primary'
-            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-        )}
-      >
-        <span
-          className={cn(
-            'absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-primary transition-all duration-200',
-            isActive ? 'h-6 opacity-100' : 'h-0 opacity-0 group-hover:h-4 group-hover:opacity-50'
-          )}
-        />
-        <Icon
-          className={cn(
-            'h-4 w-4 flex-shrink-0 transition-transform duration-200',
-            isActive && 'text-primary',
-            !isActive && 'group-hover:scale-110'
-          )}
-        />
-        {!collapsed && (
-          <span className="transition-opacity duration-200">{title}</span>
-        )}
-      </Link>
-    );
+    const node = findNode(NAV_TREE, path);
+    if (!node) return false;
 
-    if (collapsed) {
-      return (
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            {title}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return linkContent;
+    // First time (no explicit state): auto-expand if this branch contains the
+    // active route, or if the node is marked defaultExpanded.
+    if (branchContainsActive(node, pathname)) return true;
+    return node.defaultExpanded ?? false;
   };
+
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
+  const leaves = useMemo(() => flattenLeaves(NAV_TREE), []);
 
   return (
     <TooltipProvider>
@@ -195,260 +240,34 @@ const [billingExpanded, setBillingExpanded] = useState(true);
               collapsed && 'absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-background border shadow-md'
             )}
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
-          {/* Dashboard */}
-          <div className="flex flex-col gap-1">
-            {dashboardNavItems.map((item, index) => (
-              <div
-                key={item.href}
-                className={cn('animate-fade-in', `stagger-${index + 1}`)}
-                style={{ opacity: 0 }}
-              >
-                <NavItem {...item} />
-              </div>
-            ))}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* PACS */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              PACS
+          {collapsed ? (
+            <div className="flex flex-col gap-1">
+              {leaves.map((leaf) => (
+                <CollapsedLeaf key={leaf.href} node={leaf} pathname={pathname} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {NAV_TREE.map((node) => (
+                <NavNodeView
+                  key={node.title}
+                  node={node}
+                  path={node.title}
+                  depth={0}
+                  pathname={pathname}
+                  expanded={expanded}
+                  onToggle={toggleExpanded}
+                  isExpanded={isExpanded}
+                />
+              ))}
             </div>
           )}
-          <div className="flex flex-col gap-1">
-            {collapsed ? (
-              pacsNavItems.map((item, index) => (
-                <div
-                  key={item.href}
-                  className={cn('animate-fade-in', `stagger-${index + 2}`)}
-                  style={{ opacity: 0 }}
-                >
-                  <NavItem {...item} />
-                </div>
-              ))
-            ) : (
-              <div className="animate-fade-in stagger-2" style={{ opacity: 0 }}>
-                <button
-                  onClick={() => setPacsExpanded(!pacsExpanded)}
-                  className={cn(
-                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                    'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  <HardDrive className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="flex-1 text-left">PACS</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 transition-transform duration-200',
-                      pacsExpanded && 'rotate-180'
-                    )}
-                  />
-                </button>
-                {pacsExpanded && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
-                    {pacsNavItems.map((item) => (
-                      <NavItem key={item.href} {...item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* RIS */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              RIS
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {collapsed ? (
-              risModalityItems.map((item, index) => (
-                <div
-                  key={item.href}
-                  className={cn('animate-fade-in', `stagger-${index + 3}`)}
-                  style={{ opacity: 0 }}
-                >
-                  <NavItem {...item} />
-                </div>
-              ))
-            ) : (
-              <div className="animate-fade-in stagger-3" style={{ opacity: 0 }}>
-                <button
-                  onClick={() => setModalitiesExpanded(!modalitiesExpanded)}
-                  className={cn(
-                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                    'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  <Monitor className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="flex-1 text-left">Modalities</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 transition-transform duration-200',
-                      modalitiesExpanded && 'rotate-180'
-                    )}
-                  />
-                </button>
-                {modalitiesExpanded && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
-                    {risModalityItems.map((item) => (
-                      <NavItem key={item.href} {...item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* Reports */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              Reports
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {collapsed ? (
-              reportsNavItems.map((item, index) => (
-                <div
-                  key={item.href}
-                  className={cn('animate-fade-in', `stagger-${index + 4}`)}
-                  style={{ opacity: 0 }}
-                >
-                  <NavItem {...item} />
-                </div>
-              ))
-            ) : (
-              <div className="animate-fade-in stagger-4" style={{ opacity: 0 }}>
-                <button
-                  onClick={() => setReportsExpanded(!reportsExpanded)}
-                  className={cn(
-                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                    'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  <ClipboardList className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="flex-1 text-left">Reports</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 transition-transform duration-200',
-                      reportsExpanded && 'rotate-180'
-                    )}
-                  />
-                </button>
-                {reportsExpanded && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
-                    {reportsNavItems.map((item) => (
-                      <NavItem key={item.href} {...item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* Billing */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              Billing
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {collapsed ? (
-              billingNavItems.map((item, index) => (
-                <div
-                  key={item.href}
-                  className={cn('animate-fade-in', `stagger-${index + 4}`)}
-                  style={{ opacity: 0 }}
-                >
-                  <NavItem {...item} />
-                </div>
-              ))
-            ) : (
-              <div className="animate-fade-in stagger-4" style={{ opacity: 0 }}>
-                <button
-                  onClick={() => setBillingExpanded(!billingExpanded)}
-                  className={cn(
-                    'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                    'text-muted-foreground hover:bg-accent hover:text-foreground'
-                  )}
-                >
-                  <Receipt className="h-4 w-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="flex-1 text-left">Billing</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 transition-transform duration-200',
-                      billingExpanded && 'rotate-180'
-                    )}
-                  />
-                </button>
-                {billingExpanded && (
-                  <div className="ml-4 flex flex-col gap-1 border-l border-border/50 pl-2 mt-1">
-                    {billingNavItems.map((item) => (
-                      <NavItem key={item.href} {...item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* Novarad */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              Novarad
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {novaradNavItems.map((item, index) => (
-              <div
-                key={item.href}
-                className={cn('animate-fade-in', `stagger-${index + 5}`)}
-                style={{ opacity: 0 }}
-              >
-                <NavItem {...item} />
-              </div>
-            ))}
-          </div>
-
-          <Separator className="my-4 bg-border/50" />
-
-          {/* System */}
-          {!collapsed && (
-            <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 animate-fade-in">
-              System
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            {systemNavItems.map((item, index) => (
-              <div
-                key={item.href}
-                className={cn('animate-fade-in', `stagger-${index + 6}`)}
-                style={{ opacity: 0 }}
-              >
-                <NavItem {...item} />
-              </div>
-            ))}
-          </div>
         </ScrollArea>
 
         {/* User section */}
@@ -462,8 +281,7 @@ const [billingExpanded, setBillingExpanded] = useState(true);
             >
               <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 ring-2 ring-primary/20 flex-shrink-0">
                 <span className="text-sm font-semibold text-primary">
-                  {user.displayName?.[0]?.toUpperCase() ||
-                    user.username[0].toUpperCase()}
+                  {user.displayName?.[0]?.toUpperCase() || user.username[0].toUpperCase()}
                 </span>
               </div>
               {!collapsed && (
@@ -485,11 +303,7 @@ const [billingExpanded, setBillingExpanded] = useState(true);
                       onClick={toggleTheme}
                       className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors duration-200"
                     >
-                      {theme === 'dark' ? (
-                        <Sun className="h-4 w-4" />
-                      ) : (
-                        <Moon className="h-4 w-4" />
-                      )}
+                      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side={collapsed ? 'right' : 'top'}>
@@ -517,5 +331,159 @@ const [billingExpanded, setBillingExpanded] = useState(true);
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+// ---------- Subcomponents ----------
+
+function findNode(nodes: NavNode[], path: string): NavNode | null {
+  const parts = path.split('/');
+  let current: NavNode | undefined = nodes.find((n) => n.title === parts[0]);
+  for (let i = 1; i < parts.length && current; i++) {
+    current = current.children?.find((n) => n.title === parts[i]);
+  }
+  return current ?? null;
+}
+
+interface NavNodeViewProps {
+  node: NavNode;
+  path: string;
+  depth: number;
+  pathname: string;
+  expanded: Record<string, boolean>;
+  onToggle: (path: string) => void;
+  isExpanded: (path: string, state?: Record<string, boolean>) => boolean;
+}
+
+function NavNodeView({ node, path, depth, pathname, expanded, onToggle, isExpanded }: NavNodeViewProps) {
+  // Leaf node → direct link
+  if (!node.children) {
+    const active = isRouteActive(pathname, node.href);
+    return <NavLeaf node={node} depth={depth} active={active} />;
+  }
+
+  // Branch node → button + optional child block
+  const containsActive = branchContainsActive(node, pathname);
+  const open = isExpanded(path);
+  const Icon = node.icon;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => onToggle(path)}
+        className={cn(
+          'group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+          containsActive
+            ? 'text-foreground'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        )}
+        style={{ paddingLeft: depth === 0 ? undefined : `${0.75 + depth * 0.75}rem` }}
+      >
+        <Icon
+          className={cn(
+            'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+            !containsActive && 'group-hover:scale-110',
+            containsActive && 'text-primary'
+          )}
+        />
+        <span className="flex-1 text-left">{node.title}</span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-muted-foreground/60 transition-transform duration-200',
+            !open && '-rotate-90'
+          )}
+        />
+      </button>
+      {open && (
+        <div
+          className={cn(
+            'flex flex-col gap-1 mt-1',
+            depth === 0 ? 'ml-4 border-l border-border/50 pl-2' : 'ml-3 border-l border-border/40 pl-2'
+          )}
+        >
+          {node.children.map((child) => (
+            <NavNodeView
+              key={child.title}
+              node={child}
+              path={`${path}/${child.title}`}
+              depth={depth + 1}
+              pathname={pathname}
+              expanded={expanded}
+              onToggle={onToggle}
+              isExpanded={isExpanded}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NavLeaf({ node, depth, active }: { node: NavNode; depth: number; active: boolean }) {
+  const Icon = node.icon;
+  return (
+    <Link
+      href={node.href!}
+      className={cn(
+        'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+        active
+          ? 'bg-primary/10 text-primary'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      )}
+      style={{ paddingLeft: depth === 0 ? undefined : `${0.75 + depth * 0.25}rem` }}
+    >
+      <span
+        className={cn(
+          'absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-primary transition-all duration-200',
+          active ? 'h-6 opacity-100' : 'h-0 opacity-0 group-hover:h-4 group-hover:opacity-50'
+        )}
+      />
+      <Icon
+        className={cn(
+          'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+          active && 'text-primary',
+          !active && 'group-hover:scale-110'
+        )}
+      />
+      <span className="transition-opacity duration-200">{node.title}</span>
+    </Link>
+  );
+}
+
+function CollapsedLeaf({ node, pathname }: { node: NavNode; pathname: string }) {
+  const Icon = node.icon;
+  const active = isRouteActive(pathname, node.href);
+  return (
+    <Tooltip delayDuration={0}>
+      <TooltipTrigger asChild>
+        <Link
+          href={node.href!}
+          className={cn(
+            'group relative flex items-center justify-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+            active
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-primary transition-all duration-200',
+              active ? 'h-6 opacity-100' : 'h-0 opacity-0 group-hover:h-4 group-hover:opacity-50'
+            )}
+          />
+          <Icon
+            className={cn(
+              'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+              active && 'text-primary',
+              !active && 'group-hover:scale-110'
+            )}
+          />
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="font-medium">
+        {node.title}
+      </TooltipContent>
+    </Tooltip>
   );
 }

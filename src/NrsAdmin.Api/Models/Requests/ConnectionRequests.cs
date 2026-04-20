@@ -7,6 +7,7 @@ public class SaveConnectionRequest
     public DatabaseConnectionSettings? Database { get; set; }
     public MappingFileConnectionSettings? MappingFile { get; set; }
     public ReportTemplateConnectionSettings? ReportTemplate { get; set; }
+    public NovaradServerConnectionSettings? NovaradServer { get; set; }
 }
 
 public class TestConnectionRequest

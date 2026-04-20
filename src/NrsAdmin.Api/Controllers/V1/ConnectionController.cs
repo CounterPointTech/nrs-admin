@@ -97,6 +97,14 @@ public class ConnectionController : ControllerBase
             };
         }
 
+        if (settings?.NovaradServer is { } ns)
+        {
+            response.NovaradServer = new NovaradServerSettingsResponse
+            {
+                Host = ns.Host
+            };
+        }
+
         return Ok(new { success = true, data = response });
     }
 
@@ -133,6 +141,11 @@ public class ConnectionController : ControllerBase
         if (request.ReportTemplate is { } rt)
         {
             existing.ReportTemplate = rt;
+        }
+
+        if (request.NovaradServer is { } ns)
+        {
+            existing.NovaradServer = ns;
         }
 
         _connectionService.SaveSettings(existing);

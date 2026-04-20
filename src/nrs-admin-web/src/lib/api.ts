@@ -86,6 +86,13 @@ import {
   RouteHistorySearchParams,
   QueueStudyRequest,
   QueueSeriesRequest,
+  ExternalTool,
+  CreateExternalToolRequest,
+  UpdateExternalToolRequest,
+  ReorderExternalToolsRequest,
+  ServicesSnapshot,
+  ServiceInfo,
+  ServiceAction,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -1065,5 +1072,55 @@ export const routeQueueApi = {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  },
+};
+
+// ============== External Tools API ==============
+export const externalToolsApi = {
+  list: async (): Promise<ApiResponse<ExternalTool[]>> => {
+    return fetchWithAuth<ExternalTool[]>('/api/v1/external-tools');
+  },
+
+  create: async (request: CreateExternalToolRequest): Promise<ApiResponse<ExternalTool>> => {
+    return fetchWithAuth<ExternalTool>('/api/v1/external-tools', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  update: async (id: string, request: UpdateExternalToolRequest): Promise<ApiResponse<ExternalTool>> => {
+    return fetchWithAuth<ExternalTool>(`/api/v1/external-tools/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  },
+
+  delete: async (id: string): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/external-tools/${id}`, { method: 'DELETE' });
+  },
+
+  reorder: async (request: ReorderExternalToolsRequest): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>('/api/v1/external-tools/reorder', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  launch: async (id: string): Promise<ApiResponse<ExternalTool>> => {
+    return fetchWithAuth<ExternalTool>(`/api/v1/external-tools/${id}/launch`, { method: 'POST' });
+  },
+};
+
+// ============== Services Monitor API ==============
+export const servicesMonitorApi = {
+  getSnapshot: async (): Promise<ApiResponse<ServicesSnapshot>> => {
+    return fetchWithAuth<ServicesSnapshot>('/api/v1/services-monitor');
+  },
+
+  control: async (name: string, action: ServiceAction): Promise<ApiResponse<ServiceInfo>> => {
+    return fetchWithAuth<ServiceInfo>(
+      `/api/v1/services-monitor/${encodeURIComponent(name)}/${action}`,
+      { method: 'POST' }
+    );
   },
 };
