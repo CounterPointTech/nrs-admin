@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { StudyOverviewTab } from '@/components/studies/study-overview-tab';
 import { PatientComparisonTab } from '@/components/studies/patient-comparison-tab';
-import { OrdersProceduresTab } from '@/components/studies/orders-procedures-tab';
+import { ProcedureTab } from '@/components/studies/procedure-tab';
 import { ReportsTab } from '@/components/studies/reports-tab';
 import { SeriesDatasetsTab } from '@/components/studies/series-datasets-tab';
 import { PanelLayout } from '@/components/studies/panel-layout';
@@ -133,8 +133,8 @@ export default function UnifiedStudyEditorPage({ params }: { params: Promise<{ i
               )}
             </TabsTrigger>
             <TabsTrigger value="orders" className="gap-1 text-xs h-7">
-              <ClipboardList className="h-3 w-3" /> Orders
-              {data.orders.length > 0 && <Badge variant="secondary" className="text-[9px] h-3.5 px-1">{data.orders.length}</Badge>}
+              <ClipboardList className="h-3 w-3" /> Procedure
+              {data.procedures.length > 0 && <Badge variant="secondary" className="text-[9px] h-3.5 px-1">{data.procedures.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1 text-xs h-7">
               <FileText className="h-3 w-3" /> Reports
@@ -153,7 +153,7 @@ export default function UnifiedStudyEditorPage({ params }: { params: Promise<{ i
             <PatientComparisonTab data={data} onDataChange={handleDataChange} onOpenMergeDialog={() => setMergeDialogOpen(true)} />
           </TabsContent>
           <TabsContent value="orders">
-            <OrdersProceduresTab data={data} onDataChange={handleDataChange} />
+            <ProcedureTab data={data} onDataChange={handleDataChange} />
           </TabsContent>
           <TabsContent value="reports">
             <ReportsTab data={data} onDataChange={handleDataChange} />

@@ -388,24 +388,29 @@ public class RisRepository : BaseRepository
 
         var comparison = new OrderComparison
         {
-            PacsStudyDescription = study.AnatomicalArea,
+            PacsAccession = study.Accession,
             PacsStudyUid = study.StudyUid,
             PacsStudyDate = study.StudyDate.ToString("yyyy-MM-dd"),
             PacsModality = study.Modality,
+            PacsStudyDescription = study.AnatomicalArea,
             PacsFacility = study.FacilityName,
 
-            RisDescription = firstOrder?.Description,
+            RisAccession = firstOrder?.AccessionNumber,
             RisStudyUid = firstProcedure?.StudyUid,
             RisProcedureDate = firstProcedure?.ProcedureDateStart?.ToString("yyyy-MM-dd"),
             RisModality = firstProcedure?.ModalityType,
+            RisDescription = firstOrder?.Description,
             RisFacility = firstOrder?.SiteName,
         };
 
         var discrepancies = new List<DiscrepancyField>();
-        CompareField(discrepancies, "Study Description", comparison.PacsStudyDescription, comparison.RisDescription);
+        // Linking fields — matchers Novarad uses to correlate PACS ↔ RIS.
+        CompareField(discrepancies, "Accession", comparison.PacsAccession, comparison.RisAccession);
         CompareField(discrepancies, "Study UID", comparison.PacsStudyUid, comparison.RisStudyUid);
         CompareField(discrepancies, "Study Date", comparison.PacsStudyDate, comparison.RisProcedureDate);
         CompareField(discrepancies, "Modality", comparison.PacsModality, comparison.RisModality);
+        // Descriptive fields — informational, not used for matching.
+        CompareField(discrepancies, "Study Description", comparison.PacsStudyDescription, comparison.RisDescription);
         CompareField(discrepancies, "Facility", comparison.PacsFacility, comparison.RisFacility);
         comparison.Discrepancies = discrepancies;
 
@@ -479,6 +484,7 @@ public class RisRepository : BaseRepository
         parameters.Add("ReportId", reportId);
 
         if (request.ReportText is not null) { setClauses.Add("report_text = @ReportText"); parameters.Add("ReportText", request.ReportText); }
+        if (request.ReportFormat is not null) { setClauses.Add("report_format = @ReportFormat"); parameters.Add("ReportFormat", request.ReportFormat); }
         if (request.Notes is not null) { setClauses.Add("notes = @Notes"); parameters.Add("Notes", request.Notes); }
         if (request.Status is not null) { setClauses.Add("status = @Status"); parameters.Add("Status", request.Status); }
         if (request.ReportType is not null) { setClauses.Add("report_type = @ReportType"); parameters.Add("ReportType", request.ReportType); }
@@ -535,6 +541,7 @@ public class RisRepository : BaseRepository
         if (request.CustomField2 is not null) { setClauses.Add("custom_field_2 = @CustomField2"); parameters.Add("CustomField2", request.CustomField2); }
         if (request.CustomField3 is not null) { setClauses.Add("custom_field_3 = @CustomField3"); parameters.Add("CustomField3", request.CustomField3); }
         if (request.CustomField4 is not null) { setClauses.Add("custom_field_4 = @CustomField4"); parameters.Add("CustomField4", request.CustomField4); }
+        if (request.SiteCode is not null) { setClauses.Add("site_code = @SiteCode"); parameters.Add("SiteCode", request.SiteCode); }
 
         if (setClauses.Count == 0) return false;
 
@@ -558,6 +565,14 @@ public class RisRepository : BaseRepository
         if (request.CustomField1 is not null) { setClauses.Add("custom_field_1 = @CustomField1"); parameters.Add("CustomField1", request.CustomField1); }
         if (request.CustomField2 is not null) { setClauses.Add("custom_field_2 = @CustomField2"); parameters.Add("CustomField2", request.CustomField2); }
         if (request.CustomField3 is not null) { setClauses.Add("custom_field_3 = @CustomField3"); parameters.Add("CustomField3", request.CustomField3); }
+        if (request.AssignedPhysicianId is not null) { setClauses.Add("assigned_physician_id = @AssignedPhysicianId"); parameters.Add("AssignedPhysicianId", request.AssignedPhysicianId); }
+        if (request.PatientClass is not null) { setClauses.Add("patient_class = @PatientClass"); parameters.Add("PatientClass", request.PatientClass); }
+        if (request.PatientLocation is not null) { setClauses.Add("patient_location = @PatientLocation"); parameters.Add("PatientLocation", request.PatientLocation); }
+        if (request.VisitNumber is not null) { setClauses.Add("visit_number = @VisitNumber"); parameters.Add("VisitNumber", request.VisitNumber); }
+        if (request.CheckInTime is not null) { setClauses.Add("check_in_time = @CheckInTime"); parameters.Add("CheckInTime", request.CheckInTime); }
+        if (request.ProcedureDateStart is not null) { setClauses.Add("procedure_date_start = @ProcedureDateStart"); parameters.Add("ProcedureDateStart", request.ProcedureDateStart); }
+        if (request.ProcedureDateEnd is not null) { setClauses.Add("procedure_date_end = @ProcedureDateEnd"); parameters.Add("ProcedureDateEnd", request.ProcedureDateEnd); }
+        if (request.StatFlag is not null) { setClauses.Add("stat_flag = @StatFlag"); parameters.Add("StatFlag", request.StatFlag); }
 
         if (setClauses.Count == 0) return false;
 

@@ -151,6 +151,8 @@ try
     builder.Services.AddScoped<IcdCodeRepository>();
     builder.Services.AddScoped<ReportTemplateRepository>();
     builder.Services.AddScoped<RisRepository>();
+    builder.Services.AddScoped<PhysicianRepository>();
+    builder.Services.AddScoped<SiteRepository>();
 
     // DI Registration — Services
     builder.Services.AddScoped<AuthService>();

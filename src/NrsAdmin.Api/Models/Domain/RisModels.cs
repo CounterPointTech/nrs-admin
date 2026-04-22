@@ -198,16 +198,20 @@ public class PatientComparison
 
 public class OrderComparison
 {
-    public string? PacsStudyDescription { get; set; }
+    // PACS side (pacs.studies + pacs.patients)
+    public string? PacsAccession { get; set; }
     public string? PacsStudyUid { get; set; }
     public string? PacsStudyDate { get; set; }
     public string? PacsModality { get; set; }
+    public string? PacsStudyDescription { get; set; }
     public string? PacsFacility { get; set; }
 
-    public string? RisDescription { get; set; }
+    // RIS side (ris.orders + ris.order_procedures)
+    public string? RisAccession { get; set; }
     public string? RisStudyUid { get; set; }
     public string? RisProcedureDate { get; set; }
     public string? RisModality { get; set; }
+    public string? RisDescription { get; set; }
     public string? RisFacility { get; set; }
 
     public List<DiscrepancyField> Discrepancies { get; set; } = [];

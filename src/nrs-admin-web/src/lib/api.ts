@@ -93,6 +93,8 @@ import {
   ServicesSnapshot,
   ServiceInfo,
   ServiceAction,
+  Physician,
+  Site,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -353,6 +355,13 @@ export const authApi = {
 export const facilityApi = {
   getAll: async (): Promise<ApiResponse<Facility[]>> => {
     return fetchWithAuth<Facility[]>('/api/v1/facilities');
+  },
+};
+
+// ============== Sites API ==============
+export const siteApi = {
+  getAll: async (): Promise<ApiResponse<Site[]>> => {
+    return fetchWithAuth<Site[]>('/api/v1/sites');
   },
 };
 
@@ -1108,6 +1117,18 @@ export const externalToolsApi = {
 
   launch: async (id: string): Promise<ApiResponse<ExternalTool>> => {
     return fetchWithAuth<ExternalTool>(`/api/v1/external-tools/${id}/launch`, { method: 'POST' });
+  },
+};
+
+// ============== Physicians API ==============
+export const physicianApi = {
+  search: async (q?: string, limit = 20): Promise<ApiResponse<Physician[]>> => {
+    const qs = buildQueryString({ q, limit });
+    return fetchWithAuth<Physician[]>(`/api/v1/physicians${qs}`);
+  },
+
+  getById: async (id: number): Promise<ApiResponse<Physician>> => {
+    return fetchWithAuth<Physician>(`/api/v1/physicians/${id}`);
   },
 };
 

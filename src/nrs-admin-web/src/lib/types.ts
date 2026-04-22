@@ -248,6 +248,7 @@ export interface UpdateStudyRequest {
   status?: number;
   comments?: string;
   priority?: number;
+  facilityId?: number;
   custom1?: string;
   custom2?: string;
   custom3?: string;
@@ -842,15 +843,17 @@ export interface PatientComparison {
 }
 
 export interface OrderComparison {
-  pacsStudyDescription?: string;
+  pacsAccession?: string;
   pacsStudyUid?: string;
   pacsStudyDate?: string;
   pacsModality?: string;
+  pacsStudyDescription?: string;
   pacsFacility?: string;
-  risDescription?: string;
+  risAccession?: string;
   risStudyUid?: string;
   risProcedureDate?: string;
   risModality?: string;
+  risDescription?: string;
   risFacility?: string;
   discrepancies: DiscrepancyField[];
 }
@@ -876,6 +879,7 @@ export interface UpdateRisOrderRequest {
   customField2?: string;
   customField3?: string;
   customField4?: string;
+  siteCode?: string;
 }
 
 export interface UpdateRisOrderProcedureRequest {
@@ -884,6 +888,28 @@ export interface UpdateRisOrderProcedureRequest {
   customField1?: string;
   customField2?: string;
   customField3?: string;
+  assignedPhysicianId?: number | null;
+  patientClass?: string;
+  patientLocation?: string;
+  visitNumber?: string;
+  checkInTime?: string | null;
+  procedureDateStart?: string | null;
+  procedureDateEnd?: string | null;
+  statFlag?: boolean;
+}
+
+export interface Physician {
+  id: number;
+  displayName: string;
+  specialty?: string;
+  npi?: string;
+}
+
+export interface Site {
+  siteId: number;
+  siteCode: string;
+  description?: string;
+  isDefault: boolean;
 }
 
 export interface UpdateSeriesRequest {
@@ -893,6 +919,7 @@ export interface UpdateSeriesRequest {
 
 export interface UpdateRisReportRequest {
   reportText?: string;
+  reportFormat?: string;
   notes?: string;
   status?: string;
   reportType?: string;

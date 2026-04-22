@@ -6,7 +6,7 @@ import { Loader2, LayoutDashboard, Users, ClipboardList, FileText, Layers } from
 import { UnifiedStudyDetail, Series, getStudyStatusLabel } from '@/lib/types';
 import { StudyOverviewTab } from './study-overview-tab';
 import { PatientComparisonTab } from './patient-comparison-tab';
-import { OrdersProceduresTab } from './orders-procedures-tab';
+import { ProcedureTab } from './procedure-tab';
 import { ReportsTab } from './reports-tab';
 import { SeriesDatasetsTab } from './series-datasets-tab';
 
@@ -22,7 +22,7 @@ const SECTIONS: Section[] = [
   { id: 'overview', label: 'Study Info', icon: LayoutDashboard },
   { id: 'series', label: 'Series & Images', icon: Layers },
   { id: 'patient', label: 'Patient', icon: Users },
-  { id: 'orders', label: 'Orders', icon: ClipboardList },
+  { id: 'orders', label: 'Procedure', icon: ClipboardList },
   { id: 'reports', label: 'Reports', icon: FileText },
 ];
 
@@ -129,7 +129,7 @@ export function PanelLayout({
           <PatientComparisonTab data={data} onDataChange={onDataChange} onOpenMergeDialog={onOpenMergeDialog} />
         )}
         {active === 'orders' && (
-          <OrdersProceduresTab data={data} onDataChange={onDataChange} />
+          <ProcedureTab data={data} onDataChange={onDataChange} />
         )}
         {active === 'reports' && (
           <ReportsTab data={data} onDataChange={onDataChange} />

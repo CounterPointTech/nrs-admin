@@ -12,6 +12,7 @@ public class UpdateRisOrderRequest
     public string? CustomField2 { get; set; }
     public string? CustomField3 { get; set; }
     public string? CustomField4 { get; set; }
+    public string? SiteCode { get; set; }
 }
 
 public class UpdateRisOrderProcedureRequest
@@ -21,6 +22,14 @@ public class UpdateRisOrderProcedureRequest
     public string? CustomField1 { get; set; }
     public string? CustomField2 { get; set; }
     public string? CustomField3 { get; set; }
+    public long? AssignedPhysicianId { get; set; }
+    public string? PatientClass { get; set; }
+    public string? PatientLocation { get; set; }
+    public string? VisitNumber { get; set; }
+    public DateTime? CheckInTime { get; set; }
+    public DateTime? ProcedureDateStart { get; set; }
+    public DateTime? ProcedureDateEnd { get; set; }
+    public bool? StatFlag { get; set; }
 }
 
 public class LinkStudyRequest
@@ -71,6 +80,7 @@ public class UpdateRisPatientDetailsRequest
 public class UpdateRisReportRequest
 {
     public string? ReportText { get; set; }
+    public string? ReportFormat { get; set; }
     public string? Notes { get; set; }
     public string? Status { get; set; }
     public string? ReportType { get; set; }

@@ -24,6 +24,7 @@ public class UpdateStudyRequest
     public int? Status { get; set; }
     public string? Comments { get; set; }
     public int? Priority { get; set; }
+    public int? FacilityId { get; set; }
     public string? Custom1 { get; set; }
     public string? Custom2 { get; set; }
     public string? Custom3 { get; set; }

@@ -21,10 +21,25 @@ import {
   StandardReport,
 } from '@/lib/types';
 import { studyApi } from '@/lib/api';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 function fmtDateTime(d?: string | null) {
   if (!d) return '—';
   return new Date(d).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Escape HTML entities so plain-text report bodies render safely when upgraded to the rich editor. */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Convert a plain-text report body into paragraph-wrapped HTML for editing in the rich editor. */
+function textToHtml(txt: string): string {
+  if (!txt) return '';
+  return txt
+    .split(/\n{2,}/)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
 const REPORT_TYPES = ['Final', 'Preliminary', 'Addendum', 'Correction'];
@@ -70,8 +85,13 @@ export function ReportsTab({ data, onDataChange }: Props) {
   }
 
   function startEdit(r: RisReport) {
+    const isHtml = r.reportFormat?.toLowerCase() === 'html';
     setEditForm({
-      reportText: r.reportText ?? '', notes: r.notes ?? '', status: r.status ?? '',
+      // Promote plain-text bodies to HTML paragraphs so they display correctly in the rich editor.
+      reportText: isHtml ? (r.reportText ?? '') : textToHtml(r.reportText ?? ''),
+      // After edit, reports are stored as HTML regardless of prior format.
+      reportFormat: 'html',
+      notes: r.notes ?? '', status: r.status ?? '',
       reportType: r.reportType, requiresCorrection: r.requiresCorrection,
       customField1: r.customField1 ?? '', customField2: r.customField2 ?? '', customField3: r.customField3 ?? '',
     });
@@ -90,7 +110,7 @@ export function ReportsTab({ data, onDataChange }: Props) {
   }
 
   async function startCreate(procedureId: number) {
-    setCreateForm({ procedureId, reportType: 'Final', status: 'Draft', reportText: '', reportFormat: 'text', notes: '' });
+    setCreateForm({ procedureId, reportType: 'Final', status: 'Draft', reportText: '', reportFormat: 'html', notes: '' });
     setCreatingForProc(procedureId);
     if (!standardReportsLoaded) {
       const res = await studyApi.getStandardReports();
@@ -222,7 +242,11 @@ export function ReportsTab({ data, onDataChange }: Props) {
                       <Label className="text-[11px]">Use Standard Report</Label>
                       <Select value="" onValueChange={v => {
                         const sr = standardReports.find(r => r.standardReportId.toString() === v);
-                        if (sr) setCreateForm({ ...createForm, reportText: sr.reportText });
+                        if (sr) {
+                          // Standard report templates are plain text; wrap in paragraph HTML for the rich editor.
+                          const looksHtml = /<\w+[^>]*>/.test(sr.reportText);
+                          setCreateForm({ ...createForm, reportText: looksHtml ? sr.reportText : textToHtml(sr.reportText), reportFormat: 'html' });
+                        }
                       }}>
                         <SelectTrigger className="h-7 text-xs mt-0.5">
                           <SelectValue placeholder="Select a template to pre-fill..." />
@@ -239,9 +263,14 @@ export function ReportsTab({ data, onDataChange }: Props) {
                   )}
                   <div>
                     <Label className="text-[11px]">Report Text</Label>
-                    <textarea className="w-full min-h-[100px] rounded-md border border-input bg-background px-2 py-1.5 text-xs mt-0.5 ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
-                      value={createForm.reportText ?? ''} onChange={e => setCreateForm({ ...createForm, reportText: e.target.value })}
-                      placeholder="Enter report text..." />
+                    <div className="mt-0.5">
+                      <RichTextEditor
+                        value={createForm.reportText ?? ''}
+                        onChange={(html) => setCreateForm({ ...createForm, reportText: html, reportFormat: 'html' })}
+                        placeholder="Enter report text..."
+                        minHeight="180px"
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label className="text-[11px]">Notes</Label>
@@ -323,8 +352,13 @@ export function ReportsTab({ data, onDataChange }: Props) {
                           {/* Report text */}
                           <div>
                             <Label className="text-[11px]">Report Text</Label>
-                            <textarea className="w-full min-h-[150px] rounded-md border border-input bg-background px-2 py-1.5 text-xs mt-0.5 ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
-                              value={editForm.reportText ?? ''} onChange={e => setEditForm({ ...editForm, reportText: e.target.value })} />
+                            <div className="mt-0.5">
+                              <RichTextEditor
+                                value={editForm.reportText ?? ''}
+                                onChange={(html) => setEditForm({ ...editForm, reportText: html })}
+                                minHeight="240px"
+                              />
+                            </div>
                           </div>
                           {/* Notes + custom fields */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -272,6 +272,11 @@ public class StudyRepository : BaseRepository
             setClauses.Add("priority = @Priority");
             parameters.Add("Priority", request.Priority.Value);
         }
+        if (request.FacilityId.HasValue)
+        {
+            setClauses.Add("facility_id = @FacilityId");
+            parameters.Add("FacilityId", request.FacilityId.Value);
+        }
         if (request.Custom1 is not null)
         {
             setClauses.Add("custom_1 = @Custom1");
