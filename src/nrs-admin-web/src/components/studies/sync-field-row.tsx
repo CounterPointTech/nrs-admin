@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +17,15 @@ interface SyncFieldRowProps {
   current: SyncFieldState;
   onChange: (next: SyncFieldState) => void;
   formatFn?: (value: string) => string;
+  /**
+   * Optional trailing slot rendered in the middle controls cluster. Used for per-field
+   * side actions (e.g. "Use Standard Procedure" on the Description row). Kept compact
+   * by convention — h-5 icon buttons fit the row height.
+   */
+  extraAction?: ReactNode;
 }
 
-export function SyncFieldRow({ label, original, current, onChange, formatFn }: SyncFieldRowProps) {
+export function SyncFieldRow({ label, original, current, onChange, formatFn, extraAction }: SyncFieldRowProps) {
   const [editing, setEditing] = useState(false);
   const [editPacs, setEditPacs] = useState('');
   const [editRis, setEditRis] = useState('');
@@ -124,6 +130,7 @@ export function SyncFieldRow({ label, original, current, onChange, formatFn }: S
             {hasMismatch && !anyChanged && <AlertTriangle className="h-3 w-3 text-amber-500" />}
           </>
         )}
+        {extraAction}
       </div>
 
       {/* RIS */}

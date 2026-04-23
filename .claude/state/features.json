@@ -1,7 +1,7 @@
 {
   "project": "NRS Admin",
-  "last_updated": "2026-04-07T04:00:00Z",
-  "current_phase": "route_queue_management",
+  "last_updated": "2026-04-23T00:00:00Z",
+  "current_phase": "report_refinalize_and_hipaa_lock",
   "features": [
     {
       "id": "phase1-api",
@@ -111,6 +111,72 @@
       "name": "PACS Route Queue Management",
       "status": "done",
       "details": "COMPLETE: Backend RouteQueueModels (4 domain classes), RouteQueueRequests (4 DTOs), 12 new methods on PacsRoutingRepository (queue/errors/history CRUD, retry, summary, queue study/series via stored functions), RouteQueueController (10 endpoints). Frontend: route-queue page with panel layout (Summary/Pending/Errors/History), filter bars, pagination, retry/clear/delete actions, confirmation dialogs. Nav sidebar updated. Both projects build verified."
+    },
+    {
+      "id": "external-tools-launchpad",
+      "name": "External Tools Launchpad",
+      "status": "done",
+      "details": "COMPLETE (commit c123770): Per-user JSON-backed launchpad for four tool types — web URLs (open in browser), desktop apps (.exe), CLI commands/scripts, and file/folder shortcuts. Launches happen via Process.Start on the API host. Per-tool shell choice (cmd / Windows PowerShell / pwsh) with CMD /c start for reliable new-console spawning. Run-as-Administrator toggle (UAC prompt) for Executable/Command/FileOrFolder. Curated Lucide icon picker, categorized launchpad grid, FileBrowserDialog reused for host-side path picking, one-time host-launch warning banner. Backend: Configuration/ExternalToolsSettings, Services/ExternalToolsService, Controllers/V1/ExternalToolsController, Models/Domain/ExternalTool."
+    },
+    {
+      "id": "services-monitor",
+      "name": "Services Monitor with Start/Stop/Restart",
+      "status": "done",
+      "details": "COMPLETE (commit c123770): Dashboard Services card backed by System.ServiceProcess.ServiceController. GET /api/v1/services-monitor returns snapshot filtered by configurable glob patterns (default Novarad*, Nova*, NRS*) and exact names. POST {name}/{start|stop|restart} controls services with 30s timeout + whitelist guard (only monitored services can be controlled). Bulk Restart All button with live progress toast. Collapsed by default. NovaradServer.Host config in connection.json feeds ServicesMonitor:Host — same setting drives local vs remote, can differ from database host."
+    },
+    {
+      "id": "nav-tree-restructure",
+      "name": "Nav Sidebar Tree Structure",
+      "status": "done",
+      "details": "COMPLETE (commit c123770): Replaced hand-coded sections with recursive NavTree supporting arbitrary depth. Top-level: Dashboard, PACS, RIS, External Tools, System. RIS contains nested Modalities / Reports / Billing sub-branches. Novarad Settings under both PACS and RIS. System is strictly NRS Admin config. First-visit all collapsed; explicit user toggles win over auto-expand-on-active-route. State persists per branch in localStorage."
+    },
+    {
+      "id": "procedure-tab-rework",
+      "name": "1:1 Procedure Tab (formerly Orders tab)",
+      "status": "done",
+      "details": "COMPLETE (commit e9d5756): Renamed Orders tab → Procedure to match Novarad's actual 1:1 Study↔Order↔Procedure model. Merge UI removed (never valid). Flat single procedure card with three sections — Scheduling & Assignment, Clinical Details, Custom Fields. All previously read-only fields editable: Assigned Physician (new picker), Patient Class/Location/Visit #, Check-In/Start/End datetimes, STAT flag. Procedure Field Mapping panel grouped into Linking Fields (Accession, StudyUID, StudyDate, Modality) and Descriptive (Description, Facility) per Novarad knowledgebase hl7-order-to-study workflow step 11. Accession added as a new linker (was missing). Facility uses dedicated FacilityMappingRow component matching sync-field-row look with dual dropdowns (PACS facility_id / RIS site_code). Workflow steps timeline filters out is_disabled=true template rows (Vetted/Arrived/Scan Verified). Step status values corrected to real DB values — COMPLETE/CANCELLED/READY/null. Save fans out updateRisOrder + updateRisProcedure in parallel."
+    },
+    {
+      "id": "rich-text-editor",
+      "name": "TipTap Rich Text Editor",
+      "status": "done",
+      "details": "COMPLETE (commit e9d5756): @tiptap/react + starter-kit + underline + link + placeholder. Toolbar: Bold/Italic/Underline/Strike, H1-H3, Bullet/Ordered/Blockquote, Link/Unlink/Clear, Undo/Redo. prose-styled content area, dark-mode aware. Used in Reports tab (create + edit). Auto-promotes legacy plain-text report bodies to paragraph HTML with entity escaping. Standard report templates converted on insert. Shared component at components/ui/rich-text-editor.tsx."
+    },
+    {
+      "id": "physicians-sites-lookups",
+      "name": "Physicians + Sites Lookup APIs",
+      "status": "done",
+      "details": "COMPLETE (commit e9d5756): GET /api/v1/physicians?q= joins ris.physicians → ris.people for display names; GET {id} for single lookup; used by PhysicianPicker autocomplete (debounced 250ms, hydrates current selection by id, Clear option, shows specialty + NPI). GET /api/v1/sites lists shared.sites for RIS site_code selection. Both wired into the procedure edit form."
+    },
+    {
+      "id": "test-data-reseed",
+      "name": "RIS Test Data Reseed (1:1 + real workflow statuses)",
+      "status": "done",
+      "details": "Wiped and reseeded ris.reports, ris.order_procedure_steps, ris.order_procedures, ris.orders, ris.patients, ris.people (non-physician). Preserved physicians (person_ids 1-4) and ris.standard_steps. 10 new patients/orders/procedures linked to existing pacs.studies accessions (CR/CT/DX/US modalities only). One of each workflow state: Unscheduled, Scheduled, Patient Screened (STAT flag), Patient Checked-In, Scan Started, Scan Completed, Report Dictated, Report Signed, Complete, Cancelled. Steps populated via Novarad's own ris.order_procedure_steps_insert() function then updated per state with real DB status values (COMPLETE/CANCELLED/READY/null). Reports seeded for procedures 7, 8, 9 (Dictated/Signed/Finalized) with realistic HTML bodies. Sequences resynced after wipe to avoid PK collisions on subsequent inserts."
+    },
+    {
+      "id": "standard-procedures",
+      "name": "Standard Procedures page with CSV/Excel import",
+      "status": "done",
+      "details": "COMPLETE: New page under RIS → Modalities → Standard Procedures. Backend: StandardProcedureRepository (CRUD with FK-guard across 5 inbound tables, natural-key upsert on modality+name), StandardProceduresController (search/CRUD/import-preview/import-execute/template/export), StandardProcedureTemplateService with ClosedXML (xlsx with data-validation dropdowns for Modality + AnatomicalArea, separate Instructions/Modalities/AnatomicalAreas sheets; CSV with #-comment inline instructions). Shared CsvHelpers service extracted from CPT controller. Frontend: TanStack table with modality + area filters, CRUD dialogs, split-button dropdowns for Template/Import/Export (CSV or Excel each), import preview with overwrite-duplicates toggle. Fixed bug: ris.anatomical_areas column is 'description' not 'anatomical_area_name'."
+    },
+    {
+      "id": "standard-procedure-picker",
+      "name": "'Use Standard Procedure' picker on Procedure tab",
+      "status": "done",
+      "details": "COMPLETE: Searchable popover combobox (components/studies/standard-procedure-picker.tsx) wired into the Procedure tab's Study Description input AND the PACS↔RIS Description sync row. Filters by current procedure's modality by default with a 'Match modality' toggle; narrows as you type with 200ms debounce. Compact icon-only variant fits the dense sync-row controls. SyncFieldRow gained an optional extraAction slot for per-field side actions. Picking from the Description sync row sets both PACS + RIS values to the catalog name."
+    },
+    {
+      "id": "report-refinalize",
+      "name": "Refinalize button on Reports tab",
+      "status": "done",
+      "details": "COMPLETE: POST /api/v1/studies/{id}/ris-report/{reportId}/refinalize. RisRepository.RefinalizeReportAsync replicates Novarad ReportFinalizer's PACS-visibility steps: INSERT into pacs.preliminary_report_map (newest wins per vw_patient_studies_facilities), pacs.studies_update_report_availability(true), pacs.studies_update_procedure_status(7 Report_Finalized). Skips PDF/HL7/fax/email distribution — visibility refresh only. Guards: Signed/Finalized status + linked PACS study via accession. physician_id resolves via ris.physicians.user_id with fallback to logged-in user. Frontend: ghost 'Refinalize' button with RefreshCw icon appears next to Edit on eligible reports."
+    },
+    {
+      "id": "report-hipaa-lock",
+      "name": "HIPAA lock on Final Signed reports",
+      "status": "done",
+      "details": "COMPLETE: isLegallyLocked helper (type=Final AND status=Signed). Collapsed header shows amber 'Locked' badge. Edit mode: amber banner explains the lock + addendum policy; Type + Status selects are disabled with lock icon on labels; Report Text renders as read-only prose with amber border but stays select-text for copying (instead of RichTextEditor). Notes + custom fields remain editable per compliance scope."
     }
   ]
 }

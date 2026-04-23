@@ -502,6 +502,130 @@ public class RisRepository : BaseRepository
     }
 
     /// <summary>
+    /// Push the current RIS report body into PACS so PacsViewer shows the latest text.
+    ///
+    /// Mirrors what Novarad's RIS Processor <c>ReportFinalizer</c> does on a status→Finalized
+    /// transition (see Documents/Novarad Analysis/Documents/subsystems/ris/ris-processor.md):
+    ///   1. Insert a fresh row into <c>pacs.preliminary_report_map</c> (newest row wins in
+    ///      <c>vw_patient_studies_facilities.preliminary_result</c>).
+    ///   2. Flip <c>pacs.studies.has_report = true</c>.
+    ///   3. Set <c>pacs.studies.procedure_status = 7</c> (Report_Finalized enum).
+    ///
+    /// Skips side effects we don't want to re-fire on a manual refresh: PDF rendition,
+    /// HL7 ORU outbound, fax/email/SMS distribution. This is a PACS-visibility refresh only.
+    ///
+    /// Guards:
+    /// - Report status must be Signed or Finalized (case-insensitive) — we won't push drafts.
+    /// - Must be able to resolve the linked PACS study via the order's accession_number.
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> RefinalizeReportAsync(long reportId, int triggeringUserId)
+    {
+        const string loadSql = """
+            SELECT r.report_id        AS ReportId,
+                   r.procedure_id     AS ProcedureId,
+                   r.report_type      AS ReportType,
+                   r.status           AS Status,
+                   r.report_text      AS ReportText,
+                   r.notes            AS Notes,
+                   r.signing_physician_id   AS SigningPhysicianId,
+                   r.reporting_physician_id AS ReportingPhysicianId,
+                   o.order_id         AS OrderId,
+                   o.accession_number AS AccessionNumber,
+                   s.id               AS PacsStudyId,
+                   s.study_uid        AS StudyUid,
+                   s.accession        AS PacsAccession,
+                   p.patient_id       AS PacsPatientId,
+                   p.patient_group    AS PacsPatientGroup,
+                   sp.user_id         AS SigningUserId
+            FROM ris.reports r
+            JOIN ris.order_procedures op ON r.procedure_id = op.procedure_id
+            JOIN ris.orders o            ON op.order_id     = o.order_id
+            LEFT JOIN pacs.studies s     ON s.accession     = o.accession_number
+            LEFT JOIN pacs.patients p    ON s.patient       = p.id
+            LEFT JOIN ris.physicians sp  ON r.signing_physician_id = sp.physician_id
+            WHERE r.report_id = @ReportId
+            LIMIT 1
+            """;
+
+        await using var connection = await CreateConnectionAsync();
+        var row = await connection.QuerySingleOrDefaultAsync<dynamic>(loadSql, new { ReportId = reportId });
+
+        if (row is null)
+            return (false, $"Report {reportId} not found.");
+
+        string? status = row.status;
+        if (string.IsNullOrWhiteSpace(status) ||
+            !(string.Equals(status, "Signed",    StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(status, "Finalized", StringComparison.OrdinalIgnoreCase)))
+        {
+            return (false, $"Only Signed/Finalized reports can be refinalized (this report is '{status ?? "(null)"}').");
+        }
+
+        string? studyUid       = row.studyuid;
+        string? patientId      = row.pacspatientid;
+        string? patientGroup   = row.pacspatientgroup;
+        string? accession      = row.pacsaccession;
+        string? reportText     = row.reporttext;
+        string? notes          = row.notes;
+        long?   signingUserId  = row.signinguserid;
+
+        if (string.IsNullOrWhiteSpace(studyUid) ||
+            string.IsNullOrWhiteSpace(patientId) ||
+            string.IsNullOrWhiteSpace(patientGroup))
+        {
+            return (false, "This report's order is not linked to a PACS study (no matching accession in pacs.studies). Link the study to a RIS order first.");
+        }
+
+        // preliminary_report_map.physician_id references shared.users.user_id, not ris.physicians.
+        // Prefer the signing physician's mapped user; fall back to the user performing the refresh.
+        var physicianUserId = signingUserId.HasValue && signingUserId.Value > 0
+            ? signingUserId.Value
+            : (long)triggeringUserId;
+
+        await using var tx = await connection.BeginTransactionAsync();
+        try
+        {
+            const string insertPrm = """
+                INSERT INTO pacs.preliminary_report_map
+                    (study_uid, patient_group, patient_id, physician_id, created_on_date, comments, result)
+                VALUES
+                    (@StudyUid, @PatientGroup, @PatientId, @PhysicianId, timezone('UTC'::text, now()),
+                     COALESCE(@Comments, ''), COALESCE(@ReportText, ''))
+                """;
+
+            await connection.ExecuteAsync(insertPrm, new
+            {
+                StudyUid     = studyUid,
+                PatientGroup = patientGroup,
+                PatientId    = patientId,
+                PhysicianId  = physicianUserId,
+                Comments     = notes ?? string.Empty,
+                ReportText   = reportText ?? string.Empty,
+            }, tx);
+
+            await connection.ExecuteAsync(
+                "SELECT pacs.studies_update_report_availability(@PatientId, @PatientGroup, @StudyUid, @Accession, true)",
+                new { PatientId = patientId, PatientGroup = patientGroup, StudyUid = studyUid, Accession = accession ?? string.Empty },
+                tx);
+
+            // procedure_status = 7 (Report_Finalized) per Novarad enum mapping —
+            // see Documents/Novarad Analysis/Documents/subsystems/ris/ris-processor.md.
+            await connection.ExecuteAsync(
+                "SELECT pacs.studies_update_procedure_status(@StudyUid, 7::smallint)",
+                new { StudyUid = studyUid },
+                tx);
+
+            await tx.CommitAsync();
+            return (true, null);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Create a new report on a RIS procedure.
     /// </summary>
     public async Task<long> CreateReportAsync(CreateRisReportRequest request)

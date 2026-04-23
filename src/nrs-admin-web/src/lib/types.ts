@@ -1161,3 +1161,80 @@ export interface ServicesSnapshot {
 }
 
 export type ServiceAction = 'start' | 'stop' | 'restart';
+
+// ============== Standard Procedures ==============
+export interface StandardProcedure {
+  standardProcedureId: number;
+  procedureName: string;
+  modalityTypeId: string;
+  requiredTime: number;
+  anatomicalAreaId?: number;
+  anatomicalAreaName?: string;
+  examPrepInstructions?: string;
+  instructionsRequired?: boolean;
+}
+
+export interface AnatomicalArea {
+  anatomicalAreaId: number;
+  anatomicalAreaName: string;
+}
+
+export interface CreateStandardProcedureRequest {
+  procedureName: string;
+  modalityTypeId: string;
+  requiredTime: number;
+  anatomicalAreaId?: number;
+  examPrepInstructions?: string;
+  instructionsRequired?: boolean;
+}
+
+export interface UpdateStandardProcedureRequest extends CreateStandardProcedureRequest {}
+
+export interface StandardProcedureSearchFilters {
+  search?: string;
+  modalityType?: string;
+  anatomicalAreaId?: number;
+  sortBy?: string;
+  sortDesc?: boolean;
+}
+
+export interface StandardProcedureImportRow {
+  procedureName: string;
+  modalityTypeId: string;
+  requiredTime: number;
+  anatomicalAreaId?: number;
+  anatomicalAreaName?: string;
+  examPrepInstructions?: string;
+  instructionsRequired?: boolean;
+}
+
+export interface StandardProcedureImportPreviewRow {
+  rowNumber: number;
+  data: StandardProcedureImportRow;
+  isValid: boolean;
+  isDuplicate: boolean;
+  errors: string[];
+}
+
+export interface StandardProcedureImportPreviewResponse {
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  duplicateRows: number;
+  rows: StandardProcedureImportPreviewRow[];
+}
+
+export interface StandardProcedureImportExecuteRequest {
+  rows: StandardProcedureImportRow[];
+  overwriteExisting: boolean;
+}
+
+export interface StandardProcedureImportExecuteResponse {
+  insertedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: string[];
+}
+
+export type TemplateFormat = 'csv' | 'xlsx';

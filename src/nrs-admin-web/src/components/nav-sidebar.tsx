@@ -25,6 +25,7 @@ import {
   FileText,
   Wrench,
   Rocket,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ const NAV_TREE: NavNode[] = [
         children: [
           { title: 'List', href: '/modalities', icon: Monitor },
           { title: 'Mapping Editor', href: '/modalities/mapping', icon: FileCode2 },
+          { title: 'Standard Procedures', href: '/modalities/standard-procedures', icon: ClipboardList },
           { title: 'AE Monitoring', href: '/modalities/monitoring', icon: Activity },
         ],
       },

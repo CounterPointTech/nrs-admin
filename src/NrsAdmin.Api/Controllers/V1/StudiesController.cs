@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -192,6 +193,30 @@ public class StudiesController : ControllerBase
 
         var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
         return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!));
+    }
+
+    [HttpPost("{id:long}/ris-report/{reportId:long}/refinalize")]
+    public async Task<ActionResult<ApiResponse<UnifiedStudyDetail>>> RefinalizeRisReport(
+        long id, long reportId)
+    {
+        var study = await _studyRepository.GetByIdAsync(id);
+        if (study is null)
+            return NotFound(ApiResponse<UnifiedStudyDetail>.Fail($"Study {id} not found."));
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized(ApiResponse<UnifiedStudyDetail>.Fail("Invalid token."));
+
+        var (ok, err) = await _risRepository.RefinalizeReportAsync(reportId, userId);
+        if (!ok)
+            return BadRequest(ApiResponse<UnifiedStudyDetail>.Fail(err ?? "Refinalize failed."));
+
+        _logger.LogInformation(
+            "RIS report {ReportId} refinalized to PACS by user {UserId} (study {StudyId})",
+            reportId, userId, id);
+
+        var refreshed = await _risRepository.GetUnifiedStudyDetailAsync(id);
+        return Ok(ApiResponse<UnifiedStudyDetail>.Ok(refreshed!, "Report refinalized — PACS now shows the latest text."));
     }
 
     [HttpPost("{id:long}/ris-report")]

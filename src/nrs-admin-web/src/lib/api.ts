@@ -95,6 +95,15 @@ import {
   ServiceAction,
   Physician,
   Site,
+  StandardProcedure,
+  AnatomicalArea,
+  CreateStandardProcedureRequest,
+  UpdateStandardProcedureRequest,
+  StandardProcedureSearchFilters,
+  StandardProcedureImportPreviewResponse,
+  StandardProcedureImportExecuteRequest,
+  StandardProcedureImportExecuteResponse,
+  TemplateFormat,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -559,6 +568,16 @@ export const studyApi = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  refinalizeRisReport: async (
+    studyId: number,
+    reportId: number
+  ): Promise<ApiResponse<UnifiedStudyDetail>> => {
+    return fetchWithAuth<UnifiedStudyDetail>(
+      `/api/v1/studies/${studyId}/ris-report/${reportId}/refinalize`,
+      { method: 'POST' }
+    );
   },
 
   // RIS order editing
@@ -1129,6 +1148,137 @@ export const physicianApi = {
 
   getById: async (id: number): Promise<ApiResponse<Physician>> => {
     return fetchWithAuth<Physician>(`/api/v1/physicians/${id}`);
+  },
+};
+
+// ============== Standard Procedures API ==============
+export const standardProcedureApi = {
+  search: async (
+    page = 1,
+    pageSize = 50,
+    filters?: StandardProcedureSearchFilters
+  ): Promise<ApiResponse<PagedResponse<StandardProcedure>>> => {
+    const qs = buildQueryString({ page, pageSize, ...(filters as Record<string, unknown>) });
+    return fetchWithAuth<PagedResponse<StandardProcedure>>(`/api/v1/standard-procedures${qs}`);
+  },
+
+  getById: async (id: number): Promise<ApiResponse<StandardProcedure>> => {
+    return fetchWithAuth<StandardProcedure>(`/api/v1/standard-procedures/${id}`);
+  },
+
+  getModalityTypes: async (): Promise<ApiResponse<string[]>> => {
+    return fetchWithAuth<string[]>('/api/v1/standard-procedures/modality-types');
+  },
+
+  getAnatomicalAreas: async (): Promise<ApiResponse<AnatomicalArea[]>> => {
+    return fetchWithAuth<AnatomicalArea[]>('/api/v1/standard-procedures/anatomical-areas');
+  },
+
+  create: async (
+    payload: CreateStandardProcedureRequest
+  ): Promise<ApiResponse<StandardProcedure>> => {
+    return fetchWithAuth<StandardProcedure>('/api/v1/standard-procedures', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  update: async (
+    id: number,
+    payload: UpdateStandardProcedureRequest
+  ): Promise<ApiResponse<StandardProcedure>> => {
+    return fetchWithAuth<StandardProcedure>(`/api/v1/standard-procedures/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    return fetchWithAuth<void>(`/api/v1/standard-procedures/${id}`, { method: 'DELETE' });
+  },
+
+  downloadTemplate: async (format: TemplateFormat): Promise<void> => {
+    const tokens = getTokens();
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/standard-procedures/template?format=${format}`,
+      { headers: { Authorization: `Bearer ${tokens.accessToken}` } }
+    );
+    if (!response.ok) throw new Error('Template download failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download =
+      response.headers.get('content-disposition')?.split('filename=')[1]?.replace(/"/g, '') ??
+      `standard-procedures-template.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  exportFile: async (
+    format: TemplateFormat,
+    filters?: StandardProcedureSearchFilters
+  ): Promise<void> => {
+    const tokens = getTokens();
+    const qs = buildQueryString({ format, ...(filters as Record<string, unknown>) });
+    const response = await fetch(`${API_BASE_URL}/api/v1/standard-procedures/export${qs}`, {
+      headers: { Authorization: `Bearer ${tokens.accessToken}` },
+    });
+    if (!response.ok) throw new Error('Export failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download =
+      response.headers.get('content-disposition')?.split('filename=')[1]?.replace(/"/g, '') ??
+      `standard-procedures-export.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  importPreview: async (
+    file: File
+  ): Promise<ApiResponse<StandardProcedureImportPreviewResponse>> => {
+    const tokens = getTokens();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/standard-procedures/import/preview`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${tokens.accessToken}` },
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      if (typeof data === 'object' && data !== null && 'success' in data) {
+        return data;
+      }
+      return { success: true, data } as ApiResponse<StandardProcedureImportPreviewResponse>;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Import preview failed',
+      };
+    }
+  },
+
+  importExecute: async (
+    request: StandardProcedureImportExecuteRequest
+  ): Promise<ApiResponse<StandardProcedureImportExecuteResponse>> => {
+    return fetchWithAuth<StandardProcedureImportExecuteResponse>(
+      '/api/v1/standard-procedures/import/execute',
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }
+    );
   },
 };
 

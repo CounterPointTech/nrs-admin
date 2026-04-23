@@ -153,6 +153,7 @@ try
     builder.Services.AddScoped<RisRepository>();
     builder.Services.AddScoped<PhysicianRepository>();
     builder.Services.AddScoped<SiteRepository>();
+    builder.Services.AddScoped<StandardProcedureRepository>();
 
     // DI Registration — Services
     builder.Services.AddScoped<AuthService>();
@@ -160,6 +161,7 @@ try
     builder.Services.AddScoped<ReportTemplateService>();
     builder.Services.AddScoped<ExternalToolsService>();
     builder.Services.AddSingleton<ServicesMonitorService>();
+    builder.Services.AddScoped<StandardProcedureTemplateService>();
 
     var app = builder.Build();
 

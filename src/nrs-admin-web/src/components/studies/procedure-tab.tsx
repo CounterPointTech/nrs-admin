@@ -39,6 +39,7 @@ import { studyApi, facilityApi, siteApi } from '@/lib/api';
 import { SyncFieldRow, SyncFieldState } from './sync-field-row';
 import { FacilityMappingRow } from './facility-mapping-row';
 import { PhysicianPicker } from './physician-picker';
+import { StandardProcedurePicker } from './standard-procedure-picker';
 
 function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '—';
@@ -487,7 +488,15 @@ export function ProcedureTab({ data, onDataChange }: Props) {
             {editing ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-xs">Study Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Study Description</Label>
+                    <StandardProcedurePicker
+                      modalityType={procedure.modalityType || procedure.modalityName}
+                      onSelect={(sp) =>
+                        setOrderForm((prev) => ({ ...prev, description: sp.procedureName }))
+                      }
+                    />
+                  </div>
                   <Input
                     value={orderForm.description ?? ''}
                     onChange={(e) => setOrderForm({ ...orderForm, description: e.target.value })}
@@ -662,6 +671,21 @@ export function ProcedureTab({ data, onDataChange }: Props) {
                     original={originals[field]}
                     current={syncFields[field]}
                     onChange={(next) => setSyncFields((prev) => ({ ...prev, [field]: next }))}
+                    extraAction={field === 'studyDescription' ? (
+                      <StandardProcedurePicker
+                        compact
+                        modalityType={procedure.modalityType || procedure.modalityName}
+                        onSelect={(sp) =>
+                          setSyncFields((prev) => ({
+                            ...prev,
+                            studyDescription: {
+                              pacsValue: sp.procedureName,
+                              risValue: sp.procedureName,
+                            },
+                          }))
+                        }
+                      />
+                    ) : undefined}
                   />
                 ))}
                 <FacilityMappingRow

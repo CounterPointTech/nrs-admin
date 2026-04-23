@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   FileText, ChevronDown, ChevronRight, User, Calendar, AlertTriangle,
-  Pencil, Save, X, Loader2, Plus, RotateCcw, Settings2, Trash2,
+  Pencil, Save, X, Loader2, Plus, Settings2, Trash2, RefreshCw, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -45,6 +45,25 @@ function textToHtml(txt: string): string {
 const REPORT_TYPES = ['Final', 'Preliminary', 'Addendum', 'Correction'];
 const REPORT_STATUSES = ['Draft', 'Transcribed', 'Signed', 'Corrected'];
 
+/**
+ * A report is refinalize-eligible when its RIS-side status is Signed or Finalized —
+ * i.e. the radiologist has already signed it once. Drafts/Transcribed can't be
+ * pushed back into PACS; they haven't been legally attested yet.
+ */
+function isFinalizedStatus(status?: string | null): boolean {
+  const s = (status || '').toLowerCase();
+  return s === 'signed' || s === 'finalized';
+}
+
+/**
+ * HIPAA/legal lock: once a Final report is Signed, the Type + Status fields are
+ * attested as legal documents and must not be altered. Any post-sign correction
+ * goes through an Addendum instead (per radiology-reporting regulation).
+ */
+function isLegallyLocked(reportType?: string | null, status?: string | null): boolean {
+  return (reportType || '').toLowerCase() === 'final' && (status || '').toLowerCase() === 'signed';
+}
+
 function typeBadge(type: string) {
   const cls = { final: 'bg-emerald-600', preliminary: 'bg-secondary text-secondary-foreground', addendum: 'bg-blue-600', correction: 'bg-amber-600' }[type.toLowerCase()] || '';
   return <Badge className={`text-[10px] h-4 ${cls}`}>{type}</Badge>;
@@ -67,6 +86,7 @@ export function ReportsTab({ data, onDataChange }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<UpdateRisReportRequest>({});
   const [saving, setSaving] = useState(false);
+  const [refinalizingId, setRefinalizingId] = useState<number | null>(null);
 
   // Create report state
   const [creatingForProc, setCreatingForProc] = useState<number | null>(null);
@@ -97,6 +117,23 @@ export function ReportsTab({ data, onDataChange }: Props) {
     });
     setEditingId(r.reportId);
     setExpandedReports(prev => new Set(prev).add(r.reportId));
+  }
+
+  async function refinalize(reportId: number) {
+    setRefinalizingId(reportId);
+    try {
+      const res = await studyApi.refinalizeRisReport(study.id, reportId);
+      if (res.success && res.data) {
+        onDataChange(res.data);
+        toast.success(res.message || 'Report refinalized — PACS now shows the latest text.');
+      } else {
+        toast.error(res.message || 'Refinalize failed');
+      }
+    } catch {
+      toast.error('Failed to refinalize report');
+    } finally {
+      setRefinalizingId(null);
+    }
   }
 
   async function saveEdit(reportId: number) {
@@ -290,6 +327,13 @@ export function ReportsTab({ data, onDataChange }: Props) {
             {procReports.map(report => {
               const isExpanded = expandedReports.has(report.reportId);
               const isEditing = editingId === report.reportId;
+              const canRefinalize = isFinalizedStatus(report.status);
+              // Read the current (possibly in-flight edit) values when locking dropdowns,
+              // so changing Type or Status within the edit form updates the lock in real time.
+              const effectiveType = isEditing ? (editForm.reportType ?? report.reportType) : report.reportType;
+              const effectiveStatus = isEditing ? (editForm.status ?? report.status) : report.status;
+              const locked = isLegallyLocked(effectiveType, effectiveStatus);
+              const isRefinalizing = refinalizingId === report.reportId;
 
               return (
                 <Card key={report.reportId} className="shadow-none">
@@ -302,6 +346,15 @@ export function ReportsTab({ data, onDataChange }: Props) {
                         {statusBadge(report.status)}
                         {report.requiresCorrection && (
                           <Badge variant="destructive" className="text-[10px] h-4 gap-0.5"><AlertTriangle className="h-2.5 w-2.5" /> Correction</Badge>
+                        )}
+                        {locked && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] h-4 gap-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5"
+                            title="Final Signed report — Type and Status are locked for HIPAA compliance. Use an Addendum for changes."
+                          >
+                            <Lock className="h-2.5 w-2.5" /> Locked
+                          </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground" onClick={e => e.stopPropagation()}>
@@ -317,7 +370,24 @@ export function ReportsTab({ data, onDataChange }: Props) {
                             <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={saving} className="h-6 text-[11px]"><X className="h-3 w-3" /></Button>
                           </>
                         ) : (
-                          <Button size="sm" variant="ghost" onClick={() => startEdit(report)} className="gap-1 h-6 text-[11px]"><Pencil className="h-3 w-3" /> Edit</Button>
+                          <>
+                            {canRefinalize && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => refinalize(report.reportId)}
+                                disabled={isRefinalizing}
+                                className="gap-1 h-6 text-[11px]"
+                                title="Push the current report text back to PACS so PacsViewer shows the latest version."
+                              >
+                                {isRefinalizing
+                                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                                  : <RefreshCw className="h-3 w-3" />}
+                                Refinalize
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => startEdit(report)} className="gap-1 h-6 text-[11px]"><Pencil className="h-3 w-3" /> Edit</Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -328,18 +398,46 @@ export function ReportsTab({ data, onDataChange }: Props) {
                       {isEditing ? (
                         <div className="space-y-2 pt-2">
                           {/* Editable metadata row */}
+                          {locked && (
+                            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-700 dark:text-amber-500 flex items-start gap-2">
+                              <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                              <span>
+                                <strong>Final Signed report.</strong> Type, Status, and Report Text are locked — this is a
+                                legal document. Report text remains selectable for copying. Changes require an Addendum
+                                from the signing physician. Notes and custom fields stay editable.
+                              </span>
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <div>
-                              <Label className="text-[11px]">Type</Label>
-                              <Select value={editForm.reportType || report.reportType} onValueChange={v => setEditForm({ ...editForm, reportType: v })}>
-                                <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+                              <Label className="text-[11px] flex items-center gap-1">
+                                Type
+                                {locked && <Lock className="h-2.5 w-2.5 text-amber-600" />}
+                              </Label>
+                              <Select
+                                value={editForm.reportType || report.reportType}
+                                onValueChange={v => setEditForm({ ...editForm, reportType: v })}
+                                disabled={locked}
+                              >
+                                <SelectTrigger className="h-7 text-xs mt-0.5" title={locked ? 'Locked — Final Signed reports are legal documents. Use an Addendum.' : undefined}>
+                                  <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>{REPORT_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                             <div>
-                              <Label className="text-[11px]">Status</Label>
-                              <Select value={editForm.status || ''} onValueChange={v => setEditForm({ ...editForm, status: v })}>
-                                <SelectTrigger className="h-7 text-xs mt-0.5"><SelectValue /></SelectTrigger>
+                              <Label className="text-[11px] flex items-center gap-1">
+                                Status
+                                {locked && <Lock className="h-2.5 w-2.5 text-amber-600" />}
+                              </Label>
+                              <Select
+                                value={editForm.status || ''}
+                                onValueChange={v => setEditForm({ ...editForm, status: v })}
+                                disabled={locked}
+                              >
+                                <SelectTrigger className="h-7 text-xs mt-0.5" title={locked ? 'Locked — Final Signed reports are legal documents. Use an Addendum.' : undefined}>
+                                  <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>{REPORT_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
@@ -349,15 +447,37 @@ export function ReportsTab({ data, onDataChange }: Props) {
                               <Label htmlFor={`corr-${report.reportId}`} className="text-[11px]">Requires Correction</Label>
                             </div>
                           </div>
-                          {/* Report text */}
+                          {/* Report text — locked read-only for Final Signed reports,
+                              but text stays selectable so users can still copy it. */}
                           <div>
-                            <Label className="text-[11px]">Report Text</Label>
+                            <Label className="text-[11px] flex items-center gap-1">
+                              Report Text
+                              {locked && <Lock className="h-2.5 w-2.5 text-amber-600" />}
+                            </Label>
                             <div className="mt-0.5">
-                              <RichTextEditor
-                                value={editForm.reportText ?? ''}
-                                onChange={(html) => setEditForm({ ...editForm, reportText: html })}
-                                minHeight="240px"
-                              />
+                              {locked ? (
+                                <div
+                                  className="rounded-md border border-amber-500/30 bg-muted/20 p-3 select-text cursor-text"
+                                  title="Locked — Final Signed reports are legal documents. Use an Addendum for changes."
+                                >
+                                  {report.reportFormat?.toLowerCase() === 'html' ? (
+                                    <div
+                                      className="prose prose-sm max-w-none dark:prose-invert"
+                                      dangerouslySetInnerHTML={{ __html: editForm.reportText ?? '' }}
+                                    />
+                                  ) : (
+                                    <pre className="text-xs whitespace-pre-wrap font-sans leading-relaxed">
+                                      {editForm.reportText ?? ''}
+                                    </pre>
+                                  )}
+                                </div>
+                              ) : (
+                                <RichTextEditor
+                                  value={editForm.reportText ?? ''}
+                                  onChange={(html) => setEditForm({ ...editForm, reportText: html })}
+                                  minHeight="240px"
+                                />
+                              )}
                             </div>
                           </div>
                           {/* Notes + custom fields */}

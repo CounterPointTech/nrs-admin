@@ -157,3 +157,40 @@ This file tracks important architectural and design decisions.
 **Decision:** Template editor will read/write .htm files via API (similar to MappingFileService pattern). Templates use HTML comment placeholders like `<!--PatientName-->`, `<!--ReportText-->`, etc.
 **Rationale:** Matches Novarad's existing architecture. No DDL needed. Templates can be backed up and versioned like mapping files.
 **Files Affected:** (planned for next session)
+
+---
+
+### Decision: External Tools launches via backend Process.Start (host-side execution)
+
+**Context:** Users want to launch desktop apps, CLI commands, and file/folder shortcuts from NRS Admin. Browsers can't invoke arbitrary executables directly; options were custom URI scheme handler, local helper HTTP listener, or backend Process.Start.
+**Decision:** Launches fire via `POST /api/v1/external-tools/{id}/launch` which calls `Process.Start` on the API host. Commands use `cmd /c start "Title" shell /k <cmd>` to reliably spawn a new console window (avoids inheriting the API host's console). Elevated launches skip the `start` trick and use `UseShellExecute=true + Verb="runas"` directly, which ShellExecute handles natively with UAC.
+**Rationale:** Simplest zero-install path. Works for on-prem deploys where the API runs on the admin's workstation (the common case). UI surfaces a one-time warning that non-URL launches execute on the API host machine. Future v2 could add a client-side URI-scheme helper for centralized API deploys where the admin's browser is on a different machine.
+**Files Affected:** `src/NrsAdmin.Api/Services/ExternalToolsService.cs`, `src/NrsAdmin.Api/Controllers/V1/ExternalToolsController.cs`, `src/nrs-admin-web/src/components/tools/*`
+
+### Decision: ServicesMonitor:Host driven by NovaradServer.Host in connection.json
+
+**Context:** The Services dashboard card queries Windows services via `ServiceController.GetServices(machineName)`. Needed a way to point at the actual PACS/RIS host, which is often a different machine from the database host.
+**Decision:** Added `NovaradServer.Host` to `connection.json` (edited via the Configuration page). The `ConnectionJsonConfigurationProvider` maps `NovaradServer.Host` → `ServicesMonitor:Host` at load/reload time so `IOptionsMonitor<ServicesMonitorSettings>` picks it up hot.
+**Rationale:** Single source of truth for "where Novarad runs" that can be extended to future features (remote log tails, remote file browsing) without touching each feature's config. Separates this cleanly from `Database.Host`.
+**Files Affected:** `src/NrsAdmin.Api/Configuration/ConnectionSettings.cs`, `src/NrsAdmin.Api/Configuration/ConnectionJsonConfigurationSource.cs`, `src/nrs-admin-web/src/components/settings/connection-settings-card.tsx`
+
+### Decision: Study ↔ Order ↔ Procedure treated as strict 1:1 in the UI
+
+**Context:** The Orders tab rendered orders as first-class expandable containers with merge-orders + merge-procedures buttons, but a senior tech confirmed Novarad operates 1:1 between Study, Order, and Procedure. The "order" is just a DB container.
+**Decision:** Renamed tab to "Procedure", flattened the UI to a single card, removed merge dialogs entirely, relabeled order-level fields inside the procedure card without the "order" word. One Save button fans out updateRisOrder + updateRisProcedure in parallel.
+**Rationale:** Matches the actual domain model users have in their heads. Removes dead UI (merge buttons) that could produce garbage data. Simplifies the view substantially.
+**Files Affected:** `src/nrs-admin-web/src/components/studies/procedure-tab.tsx` (new), `src/app/(app)/studies/[id]/page.tsx`, `src/components/studies/panel-layout.tsx`. Deleted: `orders-procedures-tab.tsx`, `merge-order-dialog.tsx`, `merge-procedure-dialog.tsx`.
+
+### Decision: Procedure Field Mapping grouped into Linking vs Descriptive
+
+**Context:** The mapping panel mixed linker fields (StudyUID, Date, Modality) with descriptive fields (StudyDescription, Facility). Accession — Novarad's other primary matcher alongside StudyUID — was missing entirely.
+**Decision:** Grouped into two subsections: "Linking Fields · Used to match PACS ↔ RIS" (Accession, Study UID, Study Date, Modality) and "Descriptive · Informational; not used for matching" (Description, Facility). Added Accession to `OrderComparison` and the sync-field list.
+**Rationale:** Per `Documents/Novarad Analysis/Documents/workflows/hl7-order-to-study.md` step 11, Novarad matches on "StudyInstanceUID or accession number". Mismatches on linkers can silently break `pacs.studies.ris_procedure_id`; mismatches on descriptive fields are just cosmetic drift. The grouping makes the severity visually obvious.
+**Files Affected:** `src/NrsAdmin.Api/Models/Domain/RisModels.cs`, `src/NrsAdmin.Api/Repositories/RisRepository.cs`, `src/nrs-admin-web/src/components/studies/procedure-tab.tsx`, `src/nrs-admin-web/src/lib/types.ts`
+
+### Decision: Workflow step statuses use real Novarad values
+
+**Context:** Earlier code used `PENDING` as a placeholder status; the pg_dump shows Novarad's actual function `ris.order_procedure_undo_steps` writes only `COMPLETE`, `CANCELLED`, `READY`, or `NULL`.
+**Decision:** `stepStatusIcon` / `stepStatusLabel` switched to real values. NULL renders as "NOT STARTED" with a dashed circle icon. Timeline also filters out `is_disabled=true` standard_steps rows (Vetted/Arrived/Scan Verified in this install).
+**Rationale:** Code comment cites the source function so future edits don't drift. Using real values means any future procedure.status lookups can reliably compare.
+**Files Affected:** `src/nrs-admin-web/src/components/studies/procedure-tab.tsx`

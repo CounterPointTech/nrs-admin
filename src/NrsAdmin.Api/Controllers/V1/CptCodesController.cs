@@ -6,6 +6,7 @@ using NrsAdmin.Api.Models.Domain;
 using NrsAdmin.Api.Models.Requests;
 using NrsAdmin.Api.Models.Responses;
 using NrsAdmin.Api.Repositories;
+using NrsAdmin.Api.Services;
 
 namespace NrsAdmin.Api.Controllers.V1;
 
@@ -102,13 +103,13 @@ public class CptCodesController : ControllerBase
         foreach (var r in results)
         {
             csv.AppendLine(string.Join(",",
-                CsvEscape(r.ServiceCode),
-                CsvEscape(r.Description),
-                CsvEscape(r.ModalityType),
+                CsvHelpers.Escape(r.ServiceCode),
+                CsvHelpers.Escape(r.Description),
+                CsvHelpers.Escape(r.ModalityType),
                 r.RvuWork?.ToString(CultureInfo.InvariantCulture) ?? "",
-                CsvEscape(r.CustomField1),
-                CsvEscape(r.CustomField2),
-                CsvEscape(r.CustomField3)
+                CsvHelpers.Escape(r.CustomField1),
+                CsvHelpers.Escape(r.CustomField2),
+                CsvHelpers.Escape(r.CustomField3)
             ));
         }
 
@@ -124,21 +125,20 @@ public class CptCodesController : ControllerBase
 
         using var reader = new StreamReader(file.OpenReadStream());
         var content = await reader.ReadToEndAsync();
-        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var lines = CsvHelpers.SplitRows(content).ToList();
 
         var rows = new List<CptImportPreviewRow>();
         var rowNumber = 0;
 
-        foreach (var rawLine in lines)
+        foreach (var line in lines)
         {
             rowNumber++;
-            var line = rawLine.Trim('\r');
 
             // Skip header row
             if (rowNumber == 1 && line.StartsWith("ServiceCode", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var fields = ParseCsvLine(line);
+            var fields = CsvHelpers.ParseCsvLine(line);
             var errors = new List<string>();
 
             if (fields.Length < 1 || string.IsNullOrWhiteSpace(fields[0]))
@@ -158,12 +158,12 @@ public class CptCodesController : ControllerBase
             var data = new CptImportRow
             {
                 ServiceCode = fields.Length >= 1 ? fields[0].Trim() : "",
-                Description = fields.Length >= 2 ? NullIfEmpty(fields[1].Trim()) : null,
-                ModalityType = fields.Length >= 3 ? NullIfEmpty(fields[2].Trim()) : null,
+                Description = fields.Length >= 2 ? CsvHelpers.NullIfEmpty(fields[1].Trim()) : null,
+                ModalityType = fields.Length >= 3 ? CsvHelpers.NullIfEmpty(fields[2].Trim()) : null,
                 RvuWork = rvuWork,
-                CustomField1 = fields.Length >= 5 ? NullIfEmpty(fields[4].Trim()) : null,
-                CustomField2 = fields.Length >= 6 ? NullIfEmpty(fields[5].Trim()) : null,
-                CustomField3 = fields.Length >= 7 ? NullIfEmpty(fields[6].Trim()) : null,
+                CustomField1 = fields.Length >= 5 ? CsvHelpers.NullIfEmpty(fields[4].Trim()) : null,
+                CustomField2 = fields.Length >= 6 ? CsvHelpers.NullIfEmpty(fields[5].Trim()) : null,
+                CustomField3 = fields.Length >= 7 ? CsvHelpers.NullIfEmpty(fields[6].Trim()) : null,
             };
 
             rows.Add(new CptImportPreviewRow
@@ -229,65 +229,4 @@ public class CptCodesController : ControllerBase
         }));
     }
 
-    private static string[] ParseCsvLine(string line)
-    {
-        var fields = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++)
-        {
-            var c = line[i];
-
-            if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    if (i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        current.Append('"');
-                        i++;
-                    }
-                    else
-                    {
-                        inQuotes = false;
-                    }
-                }
-                else
-                {
-                    current.Append(c);
-                }
-            }
-            else
-            {
-                if (c == '"')
-                {
-                    inQuotes = true;
-                }
-                else if (c == ',')
-                {
-                    fields.Add(current.ToString());
-                    current.Clear();
-                }
-                else
-                {
-                    current.Append(c);
-                }
-            }
-        }
-
-        fields.Add(current.ToString());
-        return fields.ToArray();
-    }
-
-    private static string CsvEscape(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return "";
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
-            return $"\"{value.Replace("\"", "\"\"")}\"";
-        return value;
-    }
-
-    private static string? NullIfEmpty(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value;
 }
