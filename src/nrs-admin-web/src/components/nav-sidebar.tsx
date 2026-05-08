@@ -26,6 +26,8 @@ import {
   Wrench,
   Rocket,
   ClipboardList,
+  Send,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -90,6 +92,15 @@ const NAV_TREE: NavNode[] = [
         children: [
           { title: 'CPT Codes', href: '/billing/cpt-codes', icon: DollarSign },
           { title: 'ICD Codes', href: '/billing/icd-codes', icon: Stethoscope },
+        ],
+      },
+      {
+        title: 'HL7',
+        icon: Send,
+        children: [
+          { title: 'Overview', href: '/hl7', icon: Send },
+          { title: 'DFT Resend', href: '/hl7/resend/dft', icon: RefreshCw },
+          { title: 'MDM Resend', href: '/hl7/resend/mdm', icon: RefreshCw },
         ],
       },
       { title: 'Novarad Settings', href: '/settings', icon: Settings },

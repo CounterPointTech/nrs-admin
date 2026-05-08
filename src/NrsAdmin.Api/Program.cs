@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +12,10 @@ using NrsAdmin.Api.Middleware;
 using NrsAdmin.Api.Repositories;
 using NrsAdmin.Api.Services;
 using Serilog;
+
+// Map snake_case PostgreSQL columns to PascalCase POCO properties (e.g. patient_first_name → PatientFirstName).
+// Existing repos already alias columns explicitly with AS; this is permissive and only kicks in when no alias is used.
+DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -146,6 +151,7 @@ try
     builder.Services.AddScoped<DashboardRepository>();
     builder.Services.AddScoped<SettingsRepository>();
     builder.Services.AddScoped<Hl7Repository>();
+    builder.Services.AddScoped<Hl7ResendRepository>();
     builder.Services.AddScoped<PacsRoutingRepository>();
     builder.Services.AddScoped<BillingCodeRepository>();
     builder.Services.AddScoped<IcdCodeRepository>();

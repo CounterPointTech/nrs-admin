@@ -1238,3 +1238,63 @@ export interface StandardProcedureImportExecuteResponse {
 }
 
 export type TemplateFormat = 'csv' | 'xlsx';
+
+// ============== HL7 Resend ==============
+
+export interface Hl7ProcedureSearchResult {
+  procedureId: number;
+  accessionNumber: string;
+  patientId: string;
+  patientName: string;
+  procedureDate: string;
+  procedureName: string;
+  modality: string;
+  facility: string;
+  status: string;
+  resendStatus: string;
+}
+
+export interface Hl7ProcedureSearchRequest {
+  startDate: string;
+  endDate: string;
+  accessionNumber?: string;
+  patientId?: string;
+  status?: string;
+}
+
+export interface Hl7Physician {
+  physicianId: number;
+  physicianName: string;
+}
+
+export interface Hl7ResendStatusItem {
+  procedureId: number;
+  status: string;
+  lastUpdated?: string;
+}
+
+export interface Hl7DftResendItemResult {
+  procedureId: number;
+  success: boolean;
+  status: string;
+  errorMessage?: string;
+}
+
+export interface Hl7DftResendResponse {
+  requestedCount: number;
+  successCount: number;
+  failureCount: number;
+  results: Hl7DftResendItemResult[];
+}
+
+export interface Hl7MdmResendResponse {
+  queuedCount: number;
+  inputCount: number;
+  message: string;
+}
+
+export interface Hl7MdmByDateRequest {
+  startDateTime: string;
+  endDateTime: string;
+  physicianId?: number;
+}

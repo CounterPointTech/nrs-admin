@@ -104,6 +104,13 @@ import {
   StandardProcedureImportExecuteRequest,
   StandardProcedureImportExecuteResponse,
   TemplateFormat,
+  Hl7ProcedureSearchResult,
+  Hl7ProcedureSearchRequest,
+  Hl7Physician,
+  Hl7ResendStatusItem,
+  Hl7DftResendResponse,
+  Hl7MdmResendResponse,
+  Hl7MdmByDateRequest,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
@@ -1279,6 +1286,54 @@ export const standardProcedureApi = {
         body: JSON.stringify(request),
       }
     );
+  },
+};
+
+// ============== HL7 Resend API ==============
+export const hl7ResendApi = {
+  searchProcedures: async (
+    request: Hl7ProcedureSearchRequest,
+  ): Promise<ApiResponse<Hl7ProcedureSearchResult[]>> => {
+    return fetchWithAuth<Hl7ProcedureSearchResult[]>('/api/v1/hl7/resend/procedures/search', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  getDftStatus: async (procedureIds: number[]): Promise<ApiResponse<Hl7ResendStatusItem[]>> => {
+    return fetchWithAuth<Hl7ResendStatusItem[]>('/api/v1/hl7/resend/dft/status', {
+      method: 'POST',
+      body: JSON.stringify({ procedureIds }),
+    });
+  },
+
+  resendDft: async (procedureIds: number[]): Promise<ApiResponse<Hl7DftResendResponse>> => {
+    return fetchWithAuth<Hl7DftResendResponse>('/api/v1/hl7/resend/dft', {
+      method: 'POST',
+      body: JSON.stringify({ procedureIds }),
+    });
+  },
+
+  resendMdmByAccession: async (
+    accessionNumbers: string[],
+  ): Promise<ApiResponse<Hl7MdmResendResponse>> => {
+    return fetchWithAuth<Hl7MdmResendResponse>('/api/v1/hl7/resend/mdm/by-accession', {
+      method: 'POST',
+      body: JSON.stringify({ accessionNumbers }),
+    });
+  },
+
+  resendMdmByDate: async (
+    request: Hl7MdmByDateRequest,
+  ): Promise<ApiResponse<Hl7MdmResendResponse>> => {
+    return fetchWithAuth<Hl7MdmResendResponse>('/api/v1/hl7/resend/mdm/by-date', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  getPhysicians: async (): Promise<ApiResponse<Hl7Physician[]>> => {
+    return fetchWithAuth<Hl7Physician[]>('/api/v1/hl7/resend/physicians');
   },
 };
 
